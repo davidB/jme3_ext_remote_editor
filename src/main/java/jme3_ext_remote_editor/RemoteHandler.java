@@ -71,7 +71,7 @@ public class RemoteHandler {
 		int w = msg.readInt();
 		int h = msg.readInt();
 		msg.release();
-		enqueue((rc)->{
+		remoteCtx.todos.add((rc)->{
 			rc.view.askReshape.set(new SceneProcessorCopyToBGRA.ReshapeInfo(w, h, true));
 			//TODO run notify in async (in an executor)
 			rc.view.askNotify.set((bytes) -> {
@@ -114,19 +114,22 @@ public class RemoteHandler {
 	}
 
 	void setData(ChannelHandlerContext ctx, Data data) {
-		enqueue((rc)-> {
+		remoteCtx.todos.add((rc)-> {
 			pgex.merge(data, rc.root, rc.components);
 		});
 	}
 
 	void setEye(ChannelHandlerContext ctx, SetEye cmd) {
-		enqueue((rc)-> {
+		remoteCtx.todos.add((rc)->{
 			CameraNode cam = rc.cam;
 			Quaternion rot = pgex.cnv(cmd.getRotation(), cam.getLocalRotation());
 			cam.setLocalRotation(rot.clone());
 			cam.setLocalTranslation(pgex.cnv(cmd.getLocation(), cam.getLocalTranslation()));
 			try {
-				Camera cam0 = rc.view.getViewPort().getCamera();
+				Camera cam0 = rc
+						.view
+						.getViewPort()
+						.getCamera();
 				cam.setCamera(cam0);
 				if (cmd.hasNear()) cam0.setFrustumNear(cmd.getNear());
 				if (cmd.hasFar()) cam0.setFrustumFar(cmd.getFar());
@@ -139,9 +142,5 @@ public class RemoteHandler {
 				exc.printStackTrace();
 			}
 		});
-	}
-
-	public void enqueue(Consumer<RemoteCtx> f) {
-		app.enqueue(() -> { f.accept(remoteCtx); return null;});
 	}
 }

@@ -22,6 +22,7 @@ public class SceneProcessorCopyToBGRA implements SceneProcessor {
 	@Getter private ViewPort viewPort;
 
 	private TransfertImage timage;
+
 	public final AtomicReference<ReshapeInfo> askReshape = new AtomicReference<>();
 
 	private Function<ByteBuffer, Boolean> notify;
@@ -33,7 +34,6 @@ public class SceneProcessorCopyToBGRA implements SceneProcessor {
 		public final int height;
 		public final boolean fixAspect;
 	}
-
 
 	@Override
 	public void initialize(RenderManager rm, ViewPort vp) {
