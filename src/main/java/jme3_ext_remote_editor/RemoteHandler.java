@@ -8,6 +8,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
+import jme3_ext_pgex.Pgex;
 import lombok.RequiredArgsConstructor;
 import pgex.Cmds.Cmd;
 import pgex.Cmds.SetEye;
