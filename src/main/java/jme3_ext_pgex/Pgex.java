@@ -1,4 +1,4 @@
-package jme3_ext_remote_editor;
+package jme3_ext_pgex;
 
 import java.util.List;
 import java.util.Map;
@@ -43,11 +43,23 @@ import com.jme3.texture.Texture2D;
 public class Pgex {
 	final AssetManager assetManager;
 	final Material defaultMaterial;
+	public final ExtensionRegistry registry;
 
-	final ExtensionRegistry registry = ExtensionRegistry.newInstance();
+	public Pgex(AssetManager assetManager) {
+		this.assetManager = assetManager;
+		registry = setupExtensionRegistry(ExtensionRegistry.newInstance());
+		defaultMaterial = newDefaultMaterial();
+	}
 
-	protected void setupExtensionRegistry() {
-		Customparams.registerAllExtensions(registry);
+	protected ExtensionRegistry setupExtensionRegistry(ExtensionRegistry r) {
+		Customparams.registerAllExtensions(r);
+		return r;
+	}
+
+	protected Material newDefaultMaterial() {
+		Material m = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		m.setColor("Color", ColorRGBA.Gray);
+		return m;
 	}
 
 	public Vector2f cnv(pgex.Datas.Vec2 src, Vector2f dst) {
