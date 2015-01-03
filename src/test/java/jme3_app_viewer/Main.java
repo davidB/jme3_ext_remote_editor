@@ -3,6 +3,7 @@ package jme3_app_viewer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jme3_ext_pgex.Pgex;
 import jme3_ext_remote_editor.AppState4RemoteCommand;
 import jme3_ext_spatial_explorer.AppStateSpatialExplorer;
 import jme3_ext_spatial_explorer.Helper;
@@ -55,7 +56,8 @@ public class Main {
 			return null;
 		});
 		app.enqueue(() -> {
-			app.getStateManager().attach(new AppState4RemoteCommand());
+			Pgex pgex = new Pgex(app.getAssetManager());
+			app.getStateManager().attach(new AppState4RemoteCommand(4242, pgex));
 			return null;
 		});
 	}

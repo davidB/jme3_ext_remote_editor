@@ -1,5 +1,6 @@
 package jme3_ext_remote_editor;
 
+import jme3_ext_pgex.Pgex;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -9,20 +10,21 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import lombok.RequiredArgsConstructor;
 
 import com.jme3.app.SimpleApplication;
 import com.jme3.app.state.AbstractAppState;
-import com.jme3.material.Material;
-import com.jme3.math.ColorRGBA;
 
+@RequiredArgsConstructor
 public class AppState4RemoteCommand extends AbstractAppState {
 
-	public int port = 4242;
+	public final int port;
+	public final Pgex pgex;
+
 	private ChannelFuture f;
 	EventLoopGroup bossGroup;
 	EventLoopGroup workerGroup;
 	private SimpleApplication app;
-	Pgex pgex;
 
 	void start() throws Exception {
 		bossGroup = new NioEventLoopGroup();
@@ -62,10 +64,6 @@ public class AppState4RemoteCommand extends AbstractAppState {
 		try {
 			app = (SimpleApplication)app0;
 			start();
-			Material defaultMaterial = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
-			defaultMaterial.setColor("Color", ColorRGBA.Gray);
-			pgex = new Pgex(app.getAssetManager(), defaultMaterial);
-			pgex.setupExtensionRegistry();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
