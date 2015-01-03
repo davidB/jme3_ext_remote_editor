@@ -20,7 +20,11 @@ public class RemoteCtx {
 		public void preFrame(float tpf) {
 			Consumer<RemoteCtx> job;
 			while ( (job = todos.poll()) != null) {
-				job.accept(RemoteCtx.this);
+				try {
+					job.accept(RemoteCtx.this);
+				} catch(Exception exc) {
+					exc.printStackTrace();
+				}
 			}
 		}
 	};
