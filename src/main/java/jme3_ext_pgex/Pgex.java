@@ -213,38 +213,16 @@ public class Pgex {
 			String id = srcl.getId();
 			PgexLightControl dst = (PgexLightControl) components.get(id);
 			if (dst == null) {
-				Light l0 = null;
-				switch(srcl.getKind()) {
-				case ambient:
-					l0 = new AmbientLight();
-					break;
-				case directional: {
-					DirectionalLight l = new DirectionalLight();
-					l0 = l;
-					break;
-				}
-				case spot: {
-					SpotLight l = new SpotLight();
-					l.setSpotRange(1000);
-					l.setSpotInnerAngle(5f * FastMath.DEG_TO_RAD);
-					l.setSpotOuterAngle(10f * FastMath.DEG_TO_RAD);
-					l0 = l;
-					break;
-				}
-				case point:
-					l0 = new PointLight();
-					break;
-				}
-				l0.setColor(ColorRGBA.White.mult(2));
-				l0.setName(id);
-
 				dst = new PgexLightControl();
-				dst.light = l0;
 				components.put(id, dst);
-
-				root.addLight(l0);
 				root.addControl(dst);
 			}
+			if (dst.light != null) {
+				root.removeLight(dst.light);
+			}
+			dst.light = makeLight(srcl);
+			root.addLight(dst.light);
+
 			if (srcl.hasColor()) {
 				dst.light.setColor(cnv(srcl.getColor(), new ColorRGBA()).mult(srcl.getIntensity()));
 			}
@@ -309,6 +287,34 @@ public class Pgex {
 				break;
 			}
 		}
+	}
+
+	public Light makeLight(pgex.Datas.Light srcl) {
+		Light l0 = null;
+		switch(srcl.getKind()) {
+		case ambient:
+			l0 = new AmbientLight();
+			break;
+		case directional: {
+			DirectionalLight l = new DirectionalLight();
+			l0 = l;
+			break;
+		}
+		case spot: {
+			SpotLight l = new SpotLight();
+			l.setSpotRange(1000);
+			l.setSpotInnerAngle(5f * FastMath.DEG_TO_RAD);
+			l.setSpotOuterAngle(10f * FastMath.DEG_TO_RAD);
+			l0 = l;
+			break;
+		}
+		case point:
+			l0 = new PointLight();
+			break;
+		}
+		l0.setColor(ColorRGBA.White.mult(2));
+		l0.setName(srcl.getId());
+		return l0;
 	}
 
 	public void mergeNodes(pgex.Datas.Data src, Node root, Map<String, Object> components) {
