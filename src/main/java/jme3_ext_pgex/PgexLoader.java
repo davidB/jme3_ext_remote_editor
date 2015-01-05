@@ -25,6 +25,7 @@ public class PgexLoader implements AssetLoader {
 				in.close();
 			}
 		}
+		//TODO check and transfert Lights on root if quantity == 1
 		return (root.getQuantity() == 1)? root.getChild(0) : root;
 	}
 

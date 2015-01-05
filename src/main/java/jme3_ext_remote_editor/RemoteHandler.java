@@ -6,7 +6,6 @@ import io.netty.channel.ChannelHandlerContext;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
 
 import jme3_ext_pgex.Pgex;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,6 @@ import com.jme3.scene.CameraNode;
 //TODO manage env per connection : remove data from the connection when connection close.
 @RequiredArgsConstructor
 public class RemoteHandler {
-	//Metrics metrics = new Metrics();
 	final Executor executor = Executors.newSingleThreadExecutor();
 	final RemoteCtx remoteCtx = new RemoteCtx();
 
