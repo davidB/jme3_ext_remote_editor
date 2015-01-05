@@ -47,6 +47,8 @@ dependencies {
 	runtime "com.jme3:jme3-lwjgl:${v_jme3}"
 	testCompile 'junit:junit:4.12'
 	testCompile 'net.alchim31.jme3:jme3_ext_spatial_explorer:0+'
+	testCompile 'com.beust:jcommander:1.35'
+	testCompile "com.jme3:jme3-blender:${v_jme3}"
 }
 
 task sourcesJar(type: Jar) {
