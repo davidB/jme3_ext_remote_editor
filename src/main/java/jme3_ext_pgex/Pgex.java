@@ -14,6 +14,7 @@ import com.jme3.asset.AssetManager;
 import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
 import com.jme3.light.Light;
+import com.jme3.light.LightList;
 import com.jme3.light.PointLight;
 import com.jme3.light.SpotLight;
 import com.jme3.material.MatParam;
@@ -179,18 +180,18 @@ public class Pgex {
 		return dst;
 	}
 
-	public Geometry cnv(pgex.Datas.GeometryObject src, Geometry dst) {
+	public Geometry cnv(pgex.Datas.Geometry src, Geometry dst) {
 		if (src.getMeshesCount() > 1) {
 			throw new IllegalArgumentException("doesn't support more than 1 mesh");
 		}
-		dst.setName(src.getId());
+		dst.setName(src.hasName()?src.getName():src.getId());
 		dst.setMesh(cnv(src.getMeshes(0), new Mesh()));
 		return dst;
 	}
 
 	//TODO optimize to create less intermediate node
 	public void merge(pgex.Datas.Data src, Node root, Map<String, Object> components) {
-		mergeNodes(src, root, components);
+		mergeTObjects(src, root, components);
 		mergeGeometries(src, root, components);
 		mergeMaterials(src, components);
 		mergeLights(src, root, components);
@@ -313,20 +314,21 @@ public class Pgex {
 			break;
 		}
 		l0.setColor(ColorRGBA.White.mult(2));
-		l0.setName(srcl.getId());
+		l0.setName(srcl.hasName()?srcl.getName():srcl.getId());
 		return l0;
 	}
 
-	public void mergeNodes(pgex.Datas.Data src, Node root, Map<String, Object> components) {
-		for(pgex.Datas.Node n : src.getNodesList()) {
+	public void mergeTObjects(pgex.Datas.Data src, Node root, Map<String, Object> components) {
+		for(pgex.Datas.TObject n : src.getTobjectsList()) {
 			//TODO manage parent hierarchy
 			String id = n.getId();
-			Node child = (Node) components.get(id);
+			Spatial child = (Spatial) components.get(id);
 			if (child == null) {
-				child = new Node(id);
+				child = new Node("");
 				root.attachChild(child);
 				components.put(id, child);
 			}
+			child.setName(n.hasName() ? n.getName():n.getId());
 			if (n.getTransformsCount() > 0) {
 				if (n.getTransformsCount() > 1) {
 					throw new IllegalArgumentException("doesn't support more than 1 transform");
@@ -337,10 +339,11 @@ public class Pgex {
 	}
 
 	public void mergeGeometries(pgex.Datas.Data src, Node root, Map<String, Object> components) {
-		for(pgex.Datas.GeometryObject g : src.getGeometriesList()) {
+		for(pgex.Datas.Geometry g : src.getGeometriesList()) {
 			//TODO manage parent hierarchy
 			String id = g.getId();
-			Geometry child = (Geometry)components.get(id);
+			Object o = components.get(id);
+			Geometry child = (o instanceof Node)? toGeometry((Node)o) : (Geometry) o;
 			if (child == null) {
 				child = new Geometry();
 				child.setMaterial(defaultMaterial);
@@ -351,6 +354,22 @@ public class Pgex {
 		}
 	}
 
+	public Geometry toGeometry(Node src) {
+		Geometry dst = new Geometry();
+		dst.setName(src.getName());
+		dst.setBatchHint(src.getBatchHint());
+		dst.setCullHint(src.getLocalCullHint());
+		dst.setLocalTransform(src.getLocalTransform());
+		LightList ls = src.getLocalLightList();
+		for(Light l: ls) {
+			dst.addLight(l);
+		}
+		ls.clear();
+		for(String k : src.getUserDataKeys()) {
+			dst.setUserData(k, src.getUserData(k));
+		}
+		return dst;
+	}
 	public void mergeMaterials(pgex.Datas.Data src, Map<String, Object> components) {
 		for(pgex.Datas.Material m : src.getMaterialsList()) {
 			//TODO manage parent hierarchy
@@ -361,6 +380,7 @@ public class Pgex {
 				mat = newMaterial(m);
 				components.put(id, mat);
 			}
+			mat.setName(m.hasName() ? m.getName():m.getId());
 			for(pgex.Datas.MaterialParam p : m.getParamsList()) {
 				mergeToMaterial(p, mat);
 			}

@@ -55,6 +55,7 @@ public class Main {
 			app.getStateManager().attach(se);
 			return null;
 		});
+		//Setup RemoteCommand
 		app.enqueue(() -> {
 			Pgex pgex = new Pgex(app.getAssetManager());
 			app.getStateManager().attach(new AppState4RemoteCommand(4242, pgex));
