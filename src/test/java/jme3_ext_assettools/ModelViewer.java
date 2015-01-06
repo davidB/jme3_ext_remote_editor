@@ -6,8 +6,12 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.logging.Handler;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
+
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import jme3_ext_pgex.Pgex;
 import jme3_ext_pgex.PgexLoader;
@@ -38,6 +42,7 @@ public class ModelViewer {
 
 	public static void main(String[] args) {
 		Logger.getLogger("").setLevel(Level.WARNING);
+		installSLF4JBridge();
 		Options options = new Options();
 		JCommander jc = new JCommander(options);
 		try {
@@ -56,7 +61,26 @@ public class ModelViewer {
 		} catch(Exception exc) {
 			exc.printStackTrace();
 			System.exit(-1);
+		} finally {
+			uninstallSLF4JBridge();
 		}
+	}
+
+	/**
+	 * Redirect java.util.logging to slf4j :
+	 * * remove registered j.u.l.Handler
+	 * * add a SLF4JBridgeHandler instance to jul's root logger.
+	 */
+	public static void installSLF4JBridge() {
+		Logger root = LogManager.getLogManager().getLogger("");
+		for(Handler h : root.getHandlers()){
+			root.removeHandler(h);
+		}
+		SLF4JBridgeHandler.install();
+	}
+
+	public static void uninstallSLF4JBridge() {
+		SLF4JBridgeHandler.uninstall();
 	}
 
 	public static class Options {

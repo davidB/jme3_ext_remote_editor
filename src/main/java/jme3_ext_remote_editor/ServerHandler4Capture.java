@@ -22,8 +22,8 @@ public class ServerHandler4Capture extends ChannelInboundHandlerAdapter {
 
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		super.channelInactive(ctx);
 		remoteHandler.disable();
+		super.channelInactive(ctx);
 	}
 
 	@Override

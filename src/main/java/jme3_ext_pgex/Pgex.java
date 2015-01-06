@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import pgex.Datas.Data;
 import pgex_ext.Customparams;
 import pgex_ext.Customparams.CustomParam;
@@ -41,6 +42,7 @@ import com.jme3.texture.Texture2D;
 
 // TODO use a Validation object (like in scala/scalaz) with option to log/dump stacktrace
 @RequiredArgsConstructor
+@Slf4j
 public class Pgex {
 	final AssetManager assetManager;
 	final Material defaultMaterial;
@@ -203,7 +205,6 @@ public class Pgex {
 	private void mergeCustomParams(Data src, Map<String, Object> components) {
 		for(pgex_ext.Customparams.CustomParams srccp : src.getExtension(pgex_ext.Customparams.customParams)) {
 			//TODO merge with existing
-			System.out.println("add  : " + srccp.getId());
 			components.put(srccp.getId(), srccp);
 		}
 	}
@@ -248,7 +249,7 @@ public class Pgex {
 						default: {
 							l.setSpotOuterAngle(max);
 							l.setSpotInnerAngle(max);
-							System.out.printf("doesn't support curve like %s for spot_angle\n", srcl.getSpotAngle().getCurveCase());
+							log.warn("doesn't support curve like {} for spot_angle", srcl.getSpotAngle().getCurveCase());
 						}
 					}
 
@@ -277,7 +278,7 @@ public class Pgex {
 					}
 					default: {
 						l.setRadius(max);
-						System.out.printf("doesn't support curve like %s for spot_angle\n", srcl.getSpotAngle().getCurveCase());
+						log.warn("doesn't support curve like {} for spot_angle", srcl.getSpotAngle().getCurveCase());
 					}
 					}
 				}
@@ -392,10 +393,10 @@ public class Pgex {
 			Object op1 = components.get(r.getRef1());
 			Object op2 = components.get(r.getRef2());
 			if (op1 == null) {
-				System.out.println("can't link op1 not found :" + r.getRef1());
+				log.warn("can't link op1 not found : {}", r.getRef1());
 			}
 			if (op2 == null) {
-				System.out.println("can't link op2 not found :" + r.getRef2());
+				log.warn("can't link op2 not found : {}", r.getRef2());
 			}
 			if (op1 == null || op2 == null) continue;
 			boolean done = false;
@@ -438,7 +439,7 @@ public class Pgex {
 			} else if (op1 instanceof Node) { // <--> pgex.Datas.Node
 			}
 			if (!done) {
-				System.out.printf("doesn't know how to make relation %s(%s) -- %s(%s)\n", r.getRef1(), op1.getClass(), r.getRef2(), op2.getClass());
+				log.warn("doesn't know how to make relation {}({}) -- {}({})\n", r.getRef1(), op1.getClass(), r.getRef2(), op2.getClass());
 			}
 		}
 	}
@@ -483,7 +484,7 @@ public class Pgex {
 			dst.setUserData(name, cnv(p.getVvec4(), new Vector4f()));
 			break;
 		default:
-			System.out.println("Material doesn't support parameter :" + name + " of type " + p.getValueCase().name());
+			log.warn("Material doesn't support parameter : {} of type {}", name, p.getValueCase().name());
 			break;
 		}
 		return dst;
@@ -529,7 +530,7 @@ public class Pgex {
 	public Material mergeToMaterial(pgex.Datas.MaterialParam p, Material dst) {
 		String name = findMaterialParamName(p.getAttrib().name(), toVarType(p.getValueCase()), dst);
 		if (name == null){
-			System.out.println("can't find a matching name for :" + p.getAttrib().name() + " (" + p.getValueCase().name() + ")");
+			log.warn("can't find a matching name for : {}({})", p.getAttrib().name(), p.getValueCase().name());
 			return dst;
 		}
 		switch(p.getValueCase()) {
@@ -555,7 +556,7 @@ public class Pgex {
 			dst.setVector4(name, cnv(p.getVquat(), new Vector4f()));
 			break;
 		case VSTRING:
-			System.out.println("Material doesn't support string parameter :" + name + " --> " + p.getVstring());
+			log.warn("Material doesn't support string parameter : {} --> {}", name, p.getVstring());
 			break;
 		case VTEXTURE:
 			dst.setTexture(name, getValue(p.getVtexture()));
@@ -570,7 +571,7 @@ public class Pgex {
 			dst.setVector4(name, cnv(p.getVvec4(), new Vector4f()));
 			break;
 		default:
-			System.out.println("Material doesn't support parameter :" + name + " of type " + p.getValueCase().name());
+			log.warn("Material doesn't support parameter : {} of type {}", name, p.getValueCase().name());
 			break;
 		}
 		return dst;
