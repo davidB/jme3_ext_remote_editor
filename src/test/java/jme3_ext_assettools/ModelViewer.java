@@ -1,4 +1,4 @@
-package jme3_app_viewer;
+package jme3_ext_assettools;
 
 import java.io.File;
 import java.net.URL;
@@ -9,7 +9,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import jme3_ext_assettools.MTLoaderExt;
 import jme3_ext_pgex.Pgex;
 import jme3_ext_pgex.PgexLoader;
 import jme3_ext_remote_editor.AppState4RemoteCommand;
@@ -198,6 +197,7 @@ public class ModelViewer {
 			AppStateSpatialExplorer se = new AppStateSpatialExplorer();
 			Helper.registerAction_Refresh(se.spatialExplorer);
 			Helper.registerAction_ShowLocalAxis(se.spatialExplorer, app);
+			Helper.registerAction_SaveAsJ3O(se.spatialExplorer, app);
 			app.getStateManager().attach(se);
 			return null;
 		});
