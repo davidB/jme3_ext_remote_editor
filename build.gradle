@@ -5,7 +5,6 @@ buildscript {
 	dependencies {
 		classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:0.5'
 		classpath 'com.netflix.nebula:gradle-extra-configurations-plugin:1.12.+'
-		classpath 'net.alchim31.gradle:gradle-getdown-plugin:0.4.0'
 	}
 }
 
@@ -14,7 +13,6 @@ apply plugin: 'provided-base'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.bintray'
-apply plugin: 'application'
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
@@ -22,7 +20,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
 version = "0.1.0"
 group = "net.alchim31.jme3"
-def description = "An experimental display of JME for remote edition (eg: via blender)"
+def description = "An experimental remote display of a jMonkeyEngine application for remote edition (eg: via blender)"
 
 repositories {
 	mavenLocal()
@@ -50,6 +48,10 @@ dependencies {
 	testCompile 'com.beust:jcommander:1.35'
 	testCompile "com.jme3:jme3-blender:${v_jme3}"
 }
+
+//------------------------------------------------------------------------------
+apply plugin: 'maven-publish'
+apply plugin: 'com.jfrog.bintray'
 
 task sourcesJar(type: Jar) {
 	from sourceSets.main.allSource
@@ -79,7 +81,7 @@ publishing {
 			artifact sourcesJar
 			pom.withXml {
 				def root = asNode()
-				root.appendNode('description', description)
+				if (description) root.appendNode('description', project.description)
 				root.children().last() + pomConfig
 			}
 		}
@@ -96,21 +98,16 @@ bintray {
 	pkg {
 		repo = 'jme3stuff'
 		name = project.name
-		desc = description
-		websiteUrl = "https://github.com/davidB/${project.name}"
-		issueTrackerUrl = "https://github.com/davidB/${project.name}/issues"
-		vcsUrl = "https://github.com/davidB/${project.name}.git"
+		desc = project.description
+		websiteUrl = "https://github.com/davidB/${rootProject.name}"
+		issueTrackerUrl = "https://github.com/davidB/${rootProject.name}/issues"
+		vcsUrl = "https://github.com/davidB/${rootProject.name}.git"
 		licenses = ['CC0-1.0']
 		labels = ['jme3']
 		publicDownloadNumbers = true
 		version {
 			name = project.version
 			vcsTag = project.version
-			//attributes = [] //Optional version-level attributes
-			//gpg {
-			//	sign = true //Determines whether to GPG sign the files. The default is false
-			//	passphrase = 'optional, the passphrase for GPG signing'
-			//}
 		}
 	}
 }
