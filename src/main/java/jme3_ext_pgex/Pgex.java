@@ -4,7 +4,9 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
+import org.slf4j.Logger;
+
 import pgex.Datas.Data;
 import pgex_ext.Customparams;
 import pgex_ext.Customparams.CustomParam;
@@ -39,10 +41,11 @@ import com.jme3.shader.VarType;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
+import com.jme3.util.IntMap;
+import com.jme3.util.TangentBinormalGenerator;
 
 // TODO use a Validation object (like in scala/scalaz) with option to log/dump stacktrace
 @RequiredArgsConstructor
-@Slf4j
 public class Pgex {
 	final AssetManager assetManager;
 	final Material defaultMaterial;
@@ -161,7 +164,7 @@ public class Pgex {
 		return b;
 	}
 
-	public Mesh cnv(pgex.Datas.Mesh src, Mesh dst) {
+	public Mesh cnv(pgex.Datas.Mesh src, Mesh dst, Logger log) {
 		if (src.getIndexArraysCount() > 1) {
 			throw new IllegalArgumentException("doesn't support more than 1 index array");
 		}
@@ -173,43 +176,58 @@ public class Pgex {
 		for(pgex.Datas.VertexArray va : src.getVertexArraysList()) {
 			VertexBuffer.Type type = cnv(va.getAttrib());
 			dst.setBuffer(type, va.getFloats().getStep(), hack_cnv(va.getFloats()));
+			log.debug("add {}", dst.getBuffer(type));
 		}
 		for(pgex.Datas.IndexArray va : src.getIndexArraysList()) {
 			dst.setBuffer(VertexBuffer.Type.Index, va.getInts().getStep(), hack_cnv(va.getInts()));
 		}
+		// basic check
+		int nbVertices = dst.getBuffer(VertexBuffer.Type.Position).getNumElements();
+		for(IntMap.Entry<VertexBuffer> evb : dst.getBuffers()) {
+			if (evb.getKey() != VertexBuffer.Type.Index.ordinal()) {
+				if (nbVertices != evb.getValue().getNumElements()) {
+					log.warn("size of vertex buffer {} is not equals to vertex buffer for position: {} != {}", VertexBuffer.Type.values()[evb.getKey()], evb.getValue().getNumElements(), nbVertices);
+				}
+			}
+		}
+		//TODO optimize lazy create Tangent when needed (for normal map ?)
+		if (dst.getBuffer(VertexBuffer.Type.Tangent) == null && dst.getBuffer(VertexBuffer.Type.TexCoord) != null) {
+			TangentBinormalGenerator.generate(dst);
+		}
+
 		dst.updateCounts();
 		dst.updateBound();
 		return dst;
 	}
 
-	public Geometry cnv(pgex.Datas.Geometry src, Geometry dst) {
+	public Geometry cnv(pgex.Datas.Geometry src, Geometry dst, Logger log) {
 		if (src.getMeshesCount() > 1) {
 			throw new IllegalArgumentException("doesn't support more than 1 mesh");
 		}
 		dst.setName(src.hasName()?src.getName():src.getId());
-		dst.setMesh(cnv(src.getMeshes(0), new Mesh()));
+		dst.setMesh(cnv(src.getMeshes(0), new Mesh(), log));
 		return dst;
 	}
 
 	//TODO optimize to create less intermediate node
-	public void merge(pgex.Datas.Data src, Node root, Map<String, Object> components) {
-		mergeTObjects(src, root, components);
-		mergeGeometries(src, root, components);
-		mergeMaterials(src, components);
-		mergeLights(src, root, components);
-		mergeCustomParams(src, components);
+	public void merge(pgex.Datas.Data src, Node root, Map<String, Object> components, Logger log) {
+		mergeTObjects(src, root, components, log);
+		mergeGeometries(src, root, components, log);
+		mergeMaterials(src, components, log);
+		mergeLights(src, root, components, log);
+		mergeCustomParams(src, components, log);
 		// relations should be the last because it reuse data provide by other (put in components)
-		mergeRelations(src, root, components);
+		mergeRelations(src, root, components, log);
 	}
 
-	private void mergeCustomParams(Data src, Map<String, Object> components) {
+	private void mergeCustomParams(Data src, Map<String, Object> components, Logger log) {
 		for(pgex_ext.Customparams.CustomParams srccp : src.getExtension(pgex_ext.Customparams.customParams)) {
 			//TODO merge with existing
 			components.put(srccp.getId(), srccp);
 		}
 	}
 
-	public void mergeLights(Data src, Node root, Map<String, Object> components) {
+	public void mergeLights(Data src, Node root, Map<String, Object> components, Logger log) {
 		for(pgex.Datas.Light srcl : src.getLightsList()) {
 			//TODO manage parent hierarchy
 			String id = srcl.getId();
@@ -222,7 +240,7 @@ public class Pgex {
 			if (dst.light != null) {
 				root.removeLight(dst.light);
 			}
-			dst.light = makeLight(srcl);
+			dst.light = makeLight(srcl, log);
 			root.addLight(dst.light);
 
 			if (srcl.hasColor()) {
@@ -291,7 +309,7 @@ public class Pgex {
 		}
 	}
 
-	public Light makeLight(pgex.Datas.Light srcl) {
+	public Light makeLight(pgex.Datas.Light srcl, Logger log) {
 		Light l0 = null;
 		switch(srcl.getKind()) {
 		case ambient:
@@ -319,7 +337,7 @@ public class Pgex {
 		return l0;
 	}
 
-	public void mergeTObjects(pgex.Datas.Data src, Node root, Map<String, Object> components) {
+	public void mergeTObjects(pgex.Datas.Data src, Node root, Map<String, Object> components, Logger log) {
 		for(pgex.Datas.TObject n : src.getTobjectsList()) {
 			//TODO manage parent hierarchy
 			String id = n.getId();
@@ -334,12 +352,12 @@ public class Pgex {
 				if (n.getTransformsCount() > 1) {
 					throw new IllegalArgumentException("doesn't support more than 1 transform");
 				}
-				merge(n.getTransforms(0), child);
+				merge(n.getTransforms(0), child, log);
 			}
 		}
 	}
 
-	public void mergeGeometries(pgex.Datas.Data src, Node root, Map<String, Object> components) {
+	public void mergeGeometries(pgex.Datas.Data src, Node root, Map<String, Object> components, Logger log) {
 		for(pgex.Datas.Geometry g : src.getGeometriesList()) {
 			//TODO manage parent hierarchy
 			String id = g.getId();
@@ -351,7 +369,8 @@ public class Pgex {
 				root.attachChild(child);
 				components.put(id, child);
 			}
-			child = cnv(g, child);
+			child = cnv(g, child, log);
+			System.out.println("merge geometry : " + id);
 		}
 	}
 
@@ -371,24 +390,21 @@ public class Pgex {
 		}
 		return dst;
 	}
-	public void mergeMaterials(pgex.Datas.Data src, Map<String, Object> components) {
+	public void mergeMaterials(pgex.Datas.Data src, Map<String, Object> components, Logger log) {
 		for(pgex.Datas.Material m : src.getMaterialsList()) {
 			//TODO manage parent hierarchy
 			String id = m.getId();
 			Material mat = (Material)components.get(id);
-			if (mat == null) {
-				//TODO choose material via family or MatParam
-				mat = newMaterial(m);
+			//if (mat == null) {
+				mat = newMaterial(m, log);
 				components.put(id, mat);
-			}
+			//}
 			mat.setName(m.hasName() ? m.getName():m.getId());
-			for(pgex.Datas.MaterialParam p : m.getParamsList()) {
-				mergeToMaterial(p, mat);
-			}
+			mergeToMaterial(m, mat, log);
 		}
 	}
 
-	public void mergeRelations(pgex.Datas.Data src, Node root, Map<String, Object> components) {
+	public void mergeRelations(pgex.Datas.Data src, Node root, Map<String, Object> components, Logger log) {
 		for(pgex.Datas.Relation r : src.getRelationsList()) {
 			Object op1 = components.get(r.getRef1());
 			Object op2 = components.get(r.getRef2());
@@ -404,7 +420,7 @@ public class Pgex {
 				CustomParams cp1 = (CustomParams) op1;
 				if (op2 instanceof Spatial) { // Geometry, Node
 					for(CustomParam p : cp1.getParamsList()) {
-						mergeToUserData(p, (Spatial) op2);
+						mergeToUserData(p, (Spatial) op2, log);
 					}
 					done = true;
 				}
@@ -444,7 +460,7 @@ public class Pgex {
 		}
 	}
 
-	public Spatial mergeToUserData(CustomParam p, Spatial dst) {
+	public Spatial mergeToUserData(CustomParam p, Spatial dst, Logger log) {
 		String name = p.getName();
 		switch(p.getValueCase()) {
 		case VALUE_NOT_SET:
@@ -472,7 +488,7 @@ public class Pgex {
 			dst.setUserData(name, p.getVstring());
 			break;
 		case VTEXTURE:
-			dst.setUserData(name, getValue(p.getVtexture()));
+			dst.setUserData(name, getValue(p.getVtexture(), log));
 			break;
 		case VVEC2:
 			dst.setUserData(name, cnv(p.getVvec2(), new Vector2f()));
@@ -490,7 +506,7 @@ public class Pgex {
 		return dst;
 	}
 
-	public Image.Format getValue(pgex.Datas.Texture2DInline.Format f) {
+	public Image.Format getValue(pgex.Datas.Texture2DInline.Format f, Logger log) {
 		switch(f){
 		//case bgra8: return Image.Format.BGR8;
 		case rgb8: return Image.Format.RGB8;
@@ -499,13 +515,16 @@ public class Pgex {
 		}
 	}
 
-	public Texture getValue(pgex.Datas.Texture t) {
+	public Texture getValue(pgex.Datas.Texture t, Logger log) {
 		switch(t.getDataCase()){
 		case DATA_NOT_SET: return null;
-		case RPATH: return assetManager.loadTexture(t.getRpath());
+		case RPATH: {
+			Texture tex = assetManager.loadTexture(t.getRpath());
+			return tex;
+		}
 		case TEX2D: {
 			pgex.Datas.Texture2DInline t2di = t.getTex2D();
-			Image img = new Image(getValue(t2di.getFormat()), t2di.getWidth(), t2di.getHeight(), t2di.getData().asReadOnlyByteBuffer());
+			Image img = new Image(getValue(t2di.getFormat(), log), t2di.getWidth(), t2di.getHeight(), t2di.getData().asReadOnlyByteBuffer());
 			return new Texture2D(img);
 		}
 		default:
@@ -513,11 +532,8 @@ public class Pgex {
 		}
 	}
 
-	public Material newMaterial(pgex.Datas.Material m) {
-		boolean lightFamily = false;
-		for (pgex.Datas.MaterialParam p : m.getParamsList()) {
-			lightFamily = lightFamily || (p.getAttrib() == pgex.Datas.MaterialParam.Attrib.specular);
-		}
+	public Material newMaterial(pgex.Datas.Material m, Logger log) {
+		boolean lightFamily = !m.getShadeless();
 		String def = lightFamily ? "Common/MatDefs/Light/Lighting.j3md" : "Common/MatDefs/Misc/Unshaded.j3md";
 		Material mat = new Material(assetManager, def);
 		if (lightFamily) {
@@ -527,79 +543,61 @@ public class Pgex {
 		return mat;
 	}
 
-	public Material mergeToMaterial(pgex.Datas.MaterialParam p, Material dst) {
-		String name = findMaterialParamName(p.getAttrib().name(), toVarType(p.getValueCase()), dst);
-		if (name == null){
-			log.warn("can't find a matching name for : {}({})", p.getAttrib().name(), p.getValueCase().name());
-			return dst;
-		}
-		switch(p.getValueCase()) {
-		case VALUE_NOT_SET:
-			dst.clearParam(name);
-			break;
-		case VBOOL:
-			dst.setBoolean(name, p.getVbool());
-			break;
-		case VCOLOR:
-			dst.setColor(name, cnv(p.getVcolor(), new ColorRGBA()));
-			break;
-		case VFLOAT:
-			dst.setFloat(name, p.getVfloat());
-			break;
-		case VINT:
-			dst.setInt(name, p.getVint());
-			break;
-		case VMAT4:
-			dst.setMatrix4(name, cnv(p.getVmat4(), new Matrix4f()));
-			break;
-		case VQUAT:
-			dst.setVector4(name, cnv(p.getVquat(), new Vector4f()));
-			break;
-		case VSTRING:
-			log.warn("Material doesn't support string parameter : {} --> {}", name, p.getVstring());
-			break;
-		case VTEXTURE:
-			dst.setTexture(name, getValue(p.getVtexture()));
-			break;
-		case VVEC2:
-			dst.setVector2(name, cnv(p.getVvec2(), new Vector2f()));
-			break;
-		case VVEC3:
-			dst.setVector3(name, cnv(p.getVvec3(), new Vector3f()));
-			break;
-		case VVEC4:
-			dst.setVector4(name, cnv(p.getVvec4(), new Vector4f()));
-			break;
-		default:
-			log.warn("Material doesn't support parameter : {} of type {}", name, p.getValueCase().name());
-			break;
-		}
+	public Material mergeToMaterial(pgex.Datas.Material src, Material dst, Logger log) {
+		MaterialDef md = dst.getMaterialDef();
+		setColor(src.hasColor(), src.getColor(), dst, new String[]{"Color", "Diffuse"}, md, log);
+		setTexture2D(src.hasColorMap(), src.getColorMap(), dst, new String[]{"ColorMap", "DiffuseMap"}, md, log);
+		//setTexture2D(src.hasNormalMap(), src.getNormalMap(), dst, new String[]{"ColorMap", "DiffuseMap"}, md, log);
+		setFloat(src.hasOpacity(), src.getOpacity(), dst, new String[]{"Alpha", "Opacity"}, md, log);
+		setTexture2D(src.hasOpacityMap(), src.getOpacityMap(), dst, new String[]{"AlphaMap", "OpacityMap"}, md, log);
+		setTexture2D(src.hasNormalMap(), src.getNormalMap(), dst, new String[]{"NormalMap"}, md, log);
+		setFloat(src.hasRoughness(), src.getRoughness(), dst, new String[]{"Roughness"}, md, log);
+		setTexture2D(src.hasRoughnessMap(), src.getRoughnessMap(), dst, new String[]{"RoughnessMap"}, md, log);
+		setFloat(src.hasMetalness(), src.getMetalness(), dst, new String[]{"Metalness"}, md, log);
+		setTexture2D(src.hasMetalnessMap(), src.getMetalnessMap(), dst, new String[]{"MetalnessMap"}, md, log);
+		setColor(src.hasSpecular(), src.getSpecular(), dst, new String[]{"Specular"}, md, log);
+		setTexture2D(src.hasSpecularMap(), src.getSpecularMap(), dst, new String[]{"SpecularMap"}, md, log);
+		setFloat(src.hasSpecularPower(), src.getSpecularPower(), dst, new String[]{"SpecularPower", "Shininess"}, md, log);
+		setTexture2D(src.hasSpecularPowerMap(), src.getSpecularPowerMap(), dst, new String[]{"SpecularPowerMap", "ShininessMap"}, md, log);
+		setColor(src.hasEmission(), src.getEmission(), dst, new String[]{"Emission", "GlowColor"}, md, log);
+		setTexture2D(src.hasEmissionMap(), src.getEmissionMap(), dst, new String[]{"EmissionMap", "GlowMap"}, md, log);
 		return dst;
 	}
 
-	public String findMaterialParamName(String name, VarType type, Material dst) {
-		if (type == null) return null;
-		MaterialDef md = dst.getMaterialDef();
-		String name2 = findMaterialParamName(new String[]{name, name + "Map"}, type, md);
-		if (name2 == null) {
-			if (pgex.Datas.MaterialParam.Attrib.color.name().equals(name)) {
-				name2 = findMaterialParamName(new String[]{"Color", "Diffuse", "ColorMap", "DiffuseMap"}, type, md);
-			} else if (pgex.Datas.MaterialParam.Attrib.specular.name().equals(name)) {
-				name2 = findMaterialParamName(new String[]{"Specular", "SpecularMap"}, type, md);
-			} else if (pgex.Datas.MaterialParam.Attrib.specular_power.name().equals(name)) {
-				name2 = findMaterialParamName(new String[]{"Shininess", "ShininessMap"}, type, md);
-			} else if (pgex.Datas.MaterialParam.Attrib.emission.name().equals(name)) {
-				name2 = findMaterialParamName(new String[]{"GlowColor", "GlowMap"}, type, md);
-			} else if (pgex.Datas.MaterialParam.Attrib.normal.name().equals(name)) {
-				name2 = findMaterialParamName(new String[]{"NormalMap"}, type, md);
-			} else if (pgex.Datas.MaterialParam.Attrib.opacity.name().equals(name)) {
-				name2 = findMaterialParamName(new String[]{"AlphaMap"}, type, md);
+	public void setColor(boolean has, pgex.Datas.Color src, Material dst, String[] names, MaterialDef scope, Logger log){
+		if (has) {
+			String name = findMaterialParamName(names, VarType.Vector4, scope, log);
+			if (name != null) {
+				dst.setColor(name, cnv(src, new ColorRGBA()));
+			} else {
+				log.warn("can't find a matching name for : [{}] ({})", String.join(",", names), VarType.Vector4);
 			}
 		}
-		return name2;
 	}
 
-	public String findMaterialParamName(String[] names, VarType type, MaterialDef scope) {
+	public void setTexture2D(boolean has, pgex.Datas.Texture src, Material dst, String[] names, MaterialDef scope, Logger log){
+		if (has) {
+			String name = findMaterialParamName(names, VarType.Texture2D, scope, log);
+			if (name != null) {
+				dst.setTexture(name, getValue(src, log));
+			} else {
+				log.warn("can't find a matching name for : [{}] ({})", String.join(",", names), VarType.Texture2D);
+			}
+		}
+	}
+
+	public void setFloat(boolean has, float src, Material dst, String[] names, MaterialDef scope, Logger log){
+		if (has) {
+			String name = findMaterialParamName(names, VarType.Float, scope, log);
+			if (name != null) {
+				dst.setFloat(name, src);
+			} else {
+				log.warn("can't find a matching name for : [{}] ({})", String.join(",", names), VarType.Float);
+			}
+		}
+	}
+
+	public String findMaterialParamName(String[] names, VarType type, MaterialDef scope, Logger log) {
 		for(String name2 : names){
 			for(MatParam mp : scope.getMaterialParams()) {
 				if (mp.getName().equalsIgnoreCase(name2) && mp.getVarType() == type) {
@@ -610,23 +608,7 @@ public class Pgex {
 		return null;
 	}
 
-	public VarType toVarType(pgex.Datas.MaterialParam.ValueCase src) {
-		switch(src) {
-		case VBOOL : return VarType.Boolean;
-		case VCOLOR : return VarType.Vector4;
-		case VFLOAT : return VarType.Float;
-		case VINT : return VarType.Int;
-		case VMAT4 : return VarType.Matrix4;
-		case VQUAT : return VarType.Vector4;
-		case VTEXTURE : return VarType.Texture2D;
-		case VVEC2 : return VarType.Vector2;
-		case VVEC3 : return VarType.Vector3;
-		case VVEC4 : return VarType.Vector4;
-		default: return null;
-		}
-	}
-
-	public void merge(pgex.Datas.Transform src, Spatial dst) {
+	public void merge(pgex.Datas.Transform src, Spatial dst, Logger log) {
 		dst.setLocalRotation(cnv(src.getRotation(), dst.getLocalRotation()));
 		dst.setLocalTranslation(cnv(src.getTranslation(), dst.getLocalTranslation()));
 		dst.setLocalScale(cnv(src.getScale(), dst.getLocalScale()));

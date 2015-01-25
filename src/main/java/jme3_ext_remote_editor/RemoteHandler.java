@@ -4,17 +4,33 @@ import static io.netty.buffer.Unpooled.wrappedBuffer;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
+
+
+
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+
+
+
+import jme3_ext_pgex.LoggerCollector;
 import jme3_ext_pgex.Pgex;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import pgex.Cmds.ChangeAssetFolders;
 import pgex.Cmds.Cmd;
 import pgex.Cmds.SetEye;
 import pgex.Datas.Data;
 
+
+
+
 import com.jme3.app.SimpleApplication;
+import com.jme3.asset.AssetManager;
+import com.jme3.asset.plugins.FileLocator;
 import com.jme3.light.LightList;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Matrix4f;
@@ -36,6 +52,7 @@ public class RemoteHandler {
 
 	public final SimpleApplication app;
 	public final Pgex pgex;
+	private final Map<String, File> folders = new HashMap<>();
 
 	public void enable() throws Exception {
 		app.enqueue(() -> {
@@ -116,6 +133,7 @@ public class RemoteHandler {
 			switch(cmd0.getCmdCase()) {
 				case SETEYE: setEye(ctx, cmd0.getSetEye()); break;
 				case SETDATA: setData(ctx, cmd0.getSetData()); break;
+				case CHANGEASSETFOLDERS: changeAssetFolders(ctx, cmd0.getChangeAssetFolders()); break;
 				//case : setCamera(ctx, cmd0); break;
 				default:
 					log.warn("unsupported cmd : {}", cmd0.getCmdCase().name() );
@@ -127,7 +145,17 @@ public class RemoteHandler {
 
 	void setData(ChannelHandlerContext ctx, Data data) {
 		remoteCtx.todos.add((rc)-> {
-			pgex.merge(data, rc.root, rc.components);
+			LoggerCollector pgexLogger = new LoggerCollector("pgex");
+			pgex.merge(data, rc.root, rc.components, pgexLogger);
+			pgexLogger.dumpTo(log);
+			int errorsCnt = pgexLogger.countOf(LoggerCollector.Level.ERROR);
+			if (errorsCnt > 0) {
+				log.error("pgex reading, error count : {}", errorsCnt);
+			}
+			int warnsCnt = pgexLogger.countOf(LoggerCollector.Level.WARN);
+			if (warnsCnt > 0) {
+				log.warn("pgex reading, warn count : {}", warnsCnt);
+			}
 		});
 	}
 
@@ -148,6 +176,39 @@ public class RemoteHandler {
 			if (cmd.hasProjection()) cam0.setProjectionMatrix(pgex.cnv(cmd.getProjection(), new Matrix4f()));
 			cam0.update();
 			cam.setEnabled(true);
+		});
+	}
+
+	void changeAssetFolders(ChannelHandlerContext ctx, ChangeAssetFolders cmd) {
+		remoteCtx.todos.add((rc)->{
+			AssetManager am = app.getAssetManager();
+			if (cmd.getUnregisterOther()) {
+				for (String p: folders.keySet()) {
+					if (!cmd.getPathList().contains(p)) {
+						File f = folders.get(p);
+						am.unregisterLocator(f.getAbsolutePath(), FileLocator.class);
+						log.warn("unregister assets folder : {}", f);
+					}
+				}
+			}
+			if (cmd.getRegister()) {
+				for (String p: cmd.getPathList()) {
+					if (!folders.containsKey(p)) {
+						File f = new File(p);
+						folders.put(p, f);
+						am.registerLocator(f.getAbsolutePath(), FileLocator.class);
+						log.warn("register assets folder : {}", f);
+					}
+				}
+			} else {
+				for (String p: cmd.getPathList()) {
+					if (folders.containsKey(p)) {
+						File f = folders.get(p);
+						am.unregisterLocator(f.getAbsolutePath(), FileLocator.class);
+						log.warn("unregister assets folder : {}", f);
+					}
+				}
+			}
 		});
 	}
 }

@@ -1,6 +1,5 @@
 package jme3_ext_assettools;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
@@ -11,8 +10,6 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
-
-import javax.imageio.ImageIO;
 
 import jme3_ext_pgex.Pgex;
 import jme3_ext_pgex.PgexLoader;
