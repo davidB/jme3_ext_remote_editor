@@ -1,5 +1,6 @@
 package jme3_ext_assettools;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
@@ -11,13 +12,14 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-import org.slf4j.bridge.SLF4JBridgeHandler;
+import javax.imageio.ImageIO;
 
 import jme3_ext_pgex.Pgex;
 import jme3_ext_pgex.PgexLoader;
 import jme3_ext_remote_editor.AppState4RemoteCommand;
-import jme3_ext_spatial_explorer.AppStateSpatialExplorer;
 import jme3_ext_spatial_explorer.Helper;
+
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -99,8 +101,8 @@ public class ModelViewer {
 		@Parameter(names = {"-height"}, description = "height of 3D view", arity = 1)
 		public int height = 720;
 
-		@Parameter(names = "--showJmeSettings", description = "show jmonkeyengine settings before displayed 3D view")
-		public boolean showJmeSettings = false;
+		@Parameter(names = "--showJmeSettings", description = "show jmonkeyengine settings before displayed 3D view", arity = 1)
+		public boolean showJmeSettings = true;
 
 		@Parameter(names = "--assetCfg", description = "url of config file for assetManager", arity = 1)
 		public URL assetCfg;
@@ -135,6 +137,20 @@ public class ModelViewer {
 		settings.setResolution(options.width, options.height);
 		settings.setVSync(true);
 		settings.setFullscreen(options.fullscreen);
+
+//		try {
+//			ClassLoader cl = Thread.currentThread().getContextClassLoader();
+//			settings.setIcons(new BufferedImage[]{
+//				ImageIO.read(cl.getResourceAsStream("shortcut-128.png")),
+//				ImageIO.read(cl.getResourceAsStream("shortcut-64.png")),
+//				ImageIO.read(cl.getResourceAsStream("shortcut-32.png")),
+//				ImageIO.read(cl.getResourceAsStream("shortcut-16.png"))
+//			});
+//		} catch (Exception e) {
+//			//log.log(java.util.logging.Level.WARNING, "Unable to load program icons", e);
+//			e.printStackTrace();
+//		}
+
 		if (options.assetCfg != null) {
 			settings.putString("AssetConfigURL", options.assetCfg.toExternalForm());
 		}
@@ -217,14 +233,7 @@ public class ModelViewer {
 
 	//Setup SpatialExplorer
 	public void setupSpatialExplorer() {
-		app.enqueue(() -> {
-			AppStateSpatialExplorer se = new AppStateSpatialExplorer();
-			Helper.registerAction_Refresh(se.spatialExplorer);
-			Helper.registerAction_ShowLocalAxis(se.spatialExplorer, app);
-			Helper.registerAction_SaveAsJ3O(se.spatialExplorer, app);
-			app.getStateManager().attach(se);
-			return null;
-		});
+		Helper.setupSpatialExplorerWithAll(app);
 	}
 
 	public void setupRemoteCommand(int port) {
@@ -250,6 +259,7 @@ public class ModelViewer {
 					exc.printStackTrace();
 				}
 			}
+			//showModel("Jaime", "Models/Jaime/Jaime.j3o");
 			return null;
 		});
 	}
