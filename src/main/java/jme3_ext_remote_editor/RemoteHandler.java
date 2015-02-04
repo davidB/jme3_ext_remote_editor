@@ -96,6 +96,8 @@ public class RemoteHandler {
 		}
 	}
 
+	private int lastByteBuf = 0;
+	private ByteBuf out = null;
 	void askScreenshot(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
 		int w = msg.readInt();
 		int h = msg.readInt();
@@ -108,17 +110,17 @@ public class RemoteHandler {
 					log.warn("bad size : {} != {}", bytes.limit(), w*h*4 );
 					return false;
 				}
+				if (lastByteBuf != bytes.hashCode()) {
+					if (out != null) out.release();
+					out = wrappedBuffer(bytes);  // use a bytes.slice() internally
+					lastByteBuf = bytes.hashCode();
+				}
 				executor.execute(() -> {
-					ByteBuf out = null;
-					synchronized (bytes) {
-						out = wrappedBuffer(bytes);  // performance
-						//out = copiedBuffer(bytes);  //secure
-					}
 					ByteBuf header = ctx.alloc().buffer(4+1);
 					header.writeInt(out.readableBytes());
 					header.writeByte(Protocol.Kind.rawScreenshot);
 					ctx.write(header);
-					ctx.writeAndFlush(out);
+					ctx.writeAndFlush(out.retain());
 				});
 				return true;
 			});

@@ -85,8 +85,15 @@ public class SceneProcessorCopyToBGRA implements SceneProcessor {
 		// for the next frame
 		ReshapeInfo askR = askReshape.getAndSet(null);
 		if (askR != null){
-			timage = reshapeInThread(Math.max(1, askR.with), Math.max(1, askR.height), askR.fixAspect);
-			//TODO dispose previous timage ASAP (when no longer used in JavafFX thread)
+			int w = Math.max(1, askR.with);
+			int h = Math.max(1, askR.height);
+			if (timage != null && (timage.width != w || timage.height != h)) {
+				timage.dispose();
+				timage = null;
+			}
+			if (timage == null) {
+				timage = reshapeInThread(w, h, askR.fixAspect);
+			}
 		}
 		Function<ByteBuffer, Boolean> askN = askNotify.getAndSet(null);
 		if (askN != null) {
@@ -106,6 +113,8 @@ public class SceneProcessorCopyToBGRA implements SceneProcessor {
 	public void reshape(ViewPort vp, int w, int h) {
 	}
 
+	//TODO try to use netty Bytebuff with refcount, to avoid destroying buffer when other (network) read it
+	//TODO try to use netty Bytebuff, to avoid synchronized(bytebuf){...} that doesn't prevent trying to read a destroyed bytebuf
 	static class TransfertImage {
 		public final int width;
 		public final int height;
@@ -130,11 +139,15 @@ public class SceneProcessorCopyToBGRA implements SceneProcessor {
 				byteBuf.clear();
 				rm.getRenderer().readFrameBuffer(fb, byteBuf);
 			}
+			//TODO return an slice of byteBuf ??
 			return notify.apply(byteBuf);
 		}
 
 		void dispose() {
 			fb.dispose();
+			synchronized (byteBuf) {
+				BufferUtils.destroyDirectBuffer(byteBuf);
+			}
 		}
 	}
 }
