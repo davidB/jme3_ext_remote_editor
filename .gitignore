@@ -13,6 +13,9 @@ build
 *.so
 *.dll
 
+# xtend
+xtend-gen
+
 # eclipse
 bin
 .classpath

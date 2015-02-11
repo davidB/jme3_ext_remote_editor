@@ -11,14 +11,13 @@ import com.jme3.scene.CameraNode;
 import com.jme3.scene.Node;
 
 public class RemoteCtx {
-	public final Node root = new Node("remoteRootNode");
-	public final CameraNode cam = new CameraNode("eye", (Camera) null);
-	public final Map<String, Object> components = new TreeMap<>();
-	public final Queue<Consumer<RemoteCtx>> todos = new ConcurrentLinkedQueue<>();
-	public final SceneProcessorCopyToBGRA view = new SceneProcessorCopyToBGRA(){
-		@Override
-		public void preFrame(float tpf) {
-			Consumer<RemoteCtx> job;
+	public val root = new Node("remoteRootNode");
+	public val cam = new CameraNode("eye", null as Camera)
+	public val components = new TreeMap<String, Object>() as Map<String, Object>
+	public val todos = new ConcurrentLinkedQueue<Consumer<RemoteCtx>>() as Queue<Consumer<RemoteCtx>>
+	public val view = new SceneProcessorCaptureToBGRA(){
+		override  preFrame(float tpf) {
+			var Consumer<RemoteCtx> job;
 			while ( (job = todos.poll()) != null) {
 				try {
 					job.accept(RemoteCtx.this);
@@ -27,9 +26,9 @@ public class RemoteCtx {
 				}
 			}
 		}
-	};
+	}
 
-	public RemoteCtx() {
+	new() {
 		cam.setEnabled(false);
 		root.attachChild(cam);
 	}
