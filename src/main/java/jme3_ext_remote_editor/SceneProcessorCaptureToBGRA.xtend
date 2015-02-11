@@ -9,7 +9,6 @@ import com.jme3.texture.Image.Format
 import com.jme3.util.BufferUtils
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
-import java.util.function.Function
 import org.eclipse.xtend.lib.annotations.Data
 import org.eclipse.xtext.xbase.lib.Functions.Function1
 import org.eclipse.xtend.lib.annotations.Accessors
@@ -23,7 +22,7 @@ class SceneProcessorCaptureToBGRA implements SceneProcessor {
 	public val askNotify = new AtomicReference<Function1<ByteBuffer, Boolean>>()
 
 	private var TransfertImage timage
-	private var Function<ByteBuffer, Boolean> notify;
+	private var Function1<ByteBuffer, Boolean> notify;
 
 
 	override initialize(RenderManager rm, ViewPort vp) {

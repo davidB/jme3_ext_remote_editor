@@ -5,6 +5,7 @@ buildscript {
 	dependencies {
 		classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:0.5'
 		classpath 'com.netflix.nebula:gradle-extra-configurations-plugin:1.12.+'
+		classpath "org.xtend:xtend-gradle-plugin:0.3.4"
 	}
 }
 
@@ -13,10 +14,13 @@ apply plugin: 'provided-base'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.bintray'
+apply plugin: "org.xtend.xtend"
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
+//WARNING: this project is 1.7 compatible but ModelViewer require javafx and java 8u20+ to run
+sourceCompatibility = JavaVersion.VERSION_1_7
+targetCompatibility = JavaVersion.VERSION_1_7
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+
 
 version = "0.1.0"
 group = "net.alchim31.jme3"
@@ -35,7 +39,8 @@ def v_slf4j = '1.7.7'
 def v_jme3 = '3.0.10'
 
 dependencies {
-	provided 'org.projectlombok:lombok:1.14.2'
+	//provided 'org.projectlombok:lombok:1.14.2'
+	compile 'org.eclipse.xtend:org.eclipse.xtend.lib:2.7.+'
 	provided "com.jme3:jme3-core:${v_jme3}"
 	compile "org.slf4j:slf4j-api:${v_slf4j}"
 	compile "org.slf4j:jul-to-slf4j:${v_slf4j}"

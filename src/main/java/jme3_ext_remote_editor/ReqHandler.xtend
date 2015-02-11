@@ -22,12 +22,12 @@ import static io.netty.buffer.Unpooled.wrappedBuffer
 
 @FinalFieldsConstructor
 class ReqHandler {
-	val executor = Executors.newSingleThreadExecutor();
-	val remoteCtx = new RemoteCtx();
-	val log = LoggerFactory.getLogger(this.getClass)
+	public val executor = Executors.newSingleThreadExecutor();
+	public val remoteCtx = new RemoteCtx();
+	public val log = LoggerFactory.getLogger(this.getClass)
 
-	val SimpleApplication app;
-	val Pgex pgex;
+	public val SimpleApplication app;
+	public val Pgex pgex;
 	private val folders = new HashMap<String, File>();
 
 	def enable() {
@@ -75,7 +75,7 @@ class ReqHandler {
 		val w = msg.readInt()
 		val h = msg.readInt()
 		msg.release()
-		remoteCtx.todos.add [rc |
+		remoteCtx.todos.add [RemoteCtx rc |
 			rc.view.askReshape.set(new SceneProcessorCaptureToBGRA.ReshapeInfo(w, h, true))
 			//TODO run notify in async (in an executor)
 			rc.view.askNotify.set [bytes |
@@ -128,7 +128,7 @@ class ReqHandler {
 	}
 
 	def setData(ChannelHandlerContext ctx, Datas.Data data) {
-		remoteCtx.todos.add [rc |
+		remoteCtx.todos.add [RemoteCtx rc |
 			val pgexLogger = new LoggerCollector("pgex");
 			pgex.merge(data, rc.root, rc.components, pgexLogger);
 			pgexLogger.dumpTo(log);
@@ -144,7 +144,7 @@ class ReqHandler {
 	}
 
 	def setEye(ChannelHandlerContext ctx, Cmds.SetEye cmd) {
-		remoteCtx.todos.add [rc |
+		remoteCtx.todos.add[rc |
 			val cam = rc.cam;
 			val rot = pgex.cnv(cmd.getRotation(), cam.getLocalRotation());
 			cam.setLocalRotation(rot.clone());
@@ -169,7 +169,7 @@ class ReqHandler {
 	}
 
 	def changeAssetFolders(ChannelHandlerContext ctx, Cmds.ChangeAssetFolders cmd) {
-		remoteCtx.todos.add [rc |
+		remoteCtx.todos.add [RemoteCtx rc |
 			val am = app.getAssetManager();
 			if (cmd.getUnregisterOther()) {
 				for (String p: folders.keySet()) {

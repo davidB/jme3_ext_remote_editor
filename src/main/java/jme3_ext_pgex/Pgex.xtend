@@ -519,65 +519,59 @@ public class Pgex {
 				var done = false;
 				if (op1 instanceof Animation) {
 					if (op2 instanceof Spatial) { // Geometry, Node
-						val s = op2 as Spatial
-						var c = s.getControl(typeof(AnimControl))
+						var c = op2.getControl(typeof(AnimControl))
 						if (c == null) {
 							c = new AnimControl()
-							s.addControl(c)
+							op2.addControl(c)
 						}
 						System.out.println("add Animation :" + op1)
-						c.addAnim(op1 as Animation)
-						done = true;
+						c.addAnim(op1)
+						done = true
 					}
 				} else if (op1 instanceof CustomParamList) { // <--> pgex_ext.Customparams.CustomParams
-					val cp1 = op1 as CustomParamList
 					if (op2 instanceof Spatial) { // Geometry, Node
-						for(CustomParam p : cp1.getParamsList()) {
-							mergeToUserData(p, op2 as Spatial, log);
+						for(CustomParam p : op1.getParamsList()) {
+							mergeToUserData(p, op2, log)
 						}
-						done = true;
+						done = true
 					}
 				}else if (op1 instanceof Geometry) { // <--> pgex.Datas.Geometry
-					val g1 = op1 as Geometry
 					if (op2 instanceof PgexLightControl) {
-						val l2 = op2 as PgexLightControl
-						l2.getSpatial().removeControl(l2);
-						g1.addControl(l2);
+						op2.getSpatial().removeControl(op2);
+						op1.addControl(op2)
 						// TODO raise an alert, strange to link LightNode and Geometry
-						done = true;
+						done = true
 					} else if (op2 instanceof Material) {
-						g1.setMaterial(op2 as Material);
-						done = true;
+						op1.setMaterial(op2)
+						done = true
 					} else if (op2 instanceof Node) {
-						(op2 as Node).attachChild(g1);
-						done = true;
+						op2.attachChild(op1)
+						done = true
 					} else if (op2 instanceof Skeleton) {
-						link(g1, op2 as Skeleton);
-						done = true;
+						link(op1, op2)
+						done = true
 					}
 				} else if (op1 instanceof PgexLightControl) { // <--> pgex.Datas.Light
-					val l1 = op1 as PgexLightControl
 					if (op2 instanceof Node) {
-						l1.getSpatial().removeControl(l1);
-						(op2 as Node).addControl(l1)
-						done = true;
+						op1.getSpatial().removeControl(op1)
+						op2.addControl(op1)
+						done = true
 					}
 				} else if (op1 instanceof Material) { // <--> pgex.Datas.Material
-					val m1 = op1 as Material;
 					if (op2 instanceof Node) {
-						(op2 as Node).setMaterial(m1)
+						op2.setMaterial(op1)
 						done = true
 					}
 				} else if (op1 instanceof Skeleton) { // <--> pgex.Datas.Skeleton
 					if (op2 instanceof Node) {
-						link(op2 as Node, op1 as Skeleton)
-						done = true;
+						link(op2, op1)
+						done = true
 					}
-					done = true;
+					done = true
 				} else if (op1 instanceof Node) { // <--> pgex.Datas.TObject
 					if (op2 instanceof Node) {
-						(op1 as Node).attachChild(op2 as Node);
-						done = true;
+						op1.attachChild(op2)
+						done = true
 					}
 				}
 				if (!done) {
@@ -695,7 +689,7 @@ public class Pgex {
 			if (name != null) {
 				dst.setColor(name, cnv(src, new ColorRGBA()))
 			} else {
-				log.warn("can't find a matching name for : [{}] ({})", String.join(",", names), VarType.Vector4)
+				log.warn("can't find a matching name for : [{}] ({})", ",".join(names), VarType.Vector4)
 			}
 		}
 	}
@@ -706,7 +700,7 @@ public class Pgex {
 			if (name != null) {
 				dst.setTexture(name, getValue(src, log))
 			} else {
-				log.warn("can't find a matching name for : [{}] ({})", String.join(",", names), VarType.Texture2D)
+				log.warn("can't find a matching name for : [{}] ({})", ",".join(names), VarType.Texture2D)
 			}
 		}
 	}
@@ -717,7 +711,7 @@ public class Pgex {
 			if (name != null) {
 				dst.setFloat(name, src)
 			} else {
-				log.warn("can't find a matching name for : [{}] ({})", String.join(",", names), VarType.Float)
+				log.warn("can't find a matching name for : [{}] ({})", ",".join(names), VarType.Float)
 			}
 		}
 	}
@@ -737,6 +731,15 @@ public class Pgex {
 		dst.setLocalRotation(cnv(src.getRotation(), dst.getLocalRotation()))
 		dst.setLocalTranslation(cnv(src.getTranslation(), dst.getLocalTranslation()))
 		dst.setLocalScale(cnv(src.getScale(), dst.getLocalScale()))
+	}
+
+	static def String join(String sep, String[] values) {
+		val s = new StringBuilder()
+		for(v : values) {
+			if (s.length != 0) s.append(sep)
+			s.append(v)
+		}
+		s.toString()
 	}
 }
 
