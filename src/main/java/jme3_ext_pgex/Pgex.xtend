@@ -41,18 +41,21 @@ import java.util.List
 import java.util.Map
 import jme3_ext_animation.CompositeTrack
 import jme3_ext_animation.FloatKeyPoints
-import jme3_ext_animation.Identity
 import jme3_ext_animation.TrackFactory
 import org.slf4j.Logger
 import pgex.Datas
 import pgex.Datas.Data
 import pgex_ext.AnimationsKf
 import pgex_ext.AnimationsKf.AnimationKF
-import pgex_ext.AnimationsKf.KeyFrame
 import pgex_ext.AnimationsKf.TransformKF
 import pgex_ext.CustomParams
 import pgex_ext.CustomParams.CustomParam
 import pgex_ext.CustomParams.CustomParamList
+import jme3_ext_animation.Interpolation
+import jme3_ext_animation.Interpolations
+import pgex_ext.AnimationsKf.KeyPoints
+import pgex_ext.AnimationsKf.KeyPoints.InterpolationFct
+import pgex_ext.AnimationsKf.BezierParams
 
 // TODO use a Validation object (like in scala/scalaz) with option to log/dump stacktrace
 public class Pgex {
@@ -247,6 +250,7 @@ public class Pgex {
 	def Animation makeAnimation(AnimationKF e, Logger log) {
 		val a =  new Animation(e.getName(), e.getDuration())
 		for(AnimationsKf.Clip clip: e.getClipsList()) {
+			System.out.println("add clip : " + clip.hasTransforms())
 			if (clip.hasTransforms()) {
 				a.addTrack(makeTrack(clip.getTransforms(), e.getDuration()))
 			}
@@ -257,54 +261,72 @@ public class Pgex {
 	def Track makeTrack(TransformKF transforms, float duration) {
 		val track = new CompositeTrack()
 		val vkf = transforms.getTranslation()
-		if (vkf.getXCount() > 0) {
-			track.tracks.add(TrackFactory.translationX(cnv(vkf.getXList(), new FloatKeyPoints(), duration)))
+		if (vkf.hasX) {
+			track.tracks.add(TrackFactory.translationX(cnv(vkf.x, new FloatKeyPoints(), duration)))
 		}
-		if (vkf.getYCount() > 0) {
-			track.tracks.add(TrackFactory.translationY(cnv(vkf.getYList(), new FloatKeyPoints(), duration)))
+		if (vkf.hasY) {
+			track.tracks.add(TrackFactory.translationY(cnv(vkf.y, new FloatKeyPoints(), duration)))
 		}
-		if (vkf.getZCount() > 0) {
-			track.tracks.add(TrackFactory.translationZ(cnv(vkf.getZList(), new FloatKeyPoints(), duration)))
+		if (vkf.hasZ) {
+			track.tracks.add(TrackFactory.translationZ(cnv(vkf.z, new FloatKeyPoints(), duration)))
 		}
 
 		val vkf2 = transforms.getScale()
-		if (vkf2.getXCount() > 0) {
-			track.tracks.add(TrackFactory.scaleX(cnv(vkf2.getXList(), new FloatKeyPoints(), duration)))
+		if (vkf2.hasX) {
+			track.tracks.add(TrackFactory.scaleX(cnv(vkf2.x, new FloatKeyPoints(), duration)))
 		}
-		if (vkf2.getYCount() > 0) {
-			track.tracks.add(TrackFactory.scaleY(cnv(vkf2.getYList(), new FloatKeyPoints(), duration)))
+		if (vkf2.hasY) {
+			track.tracks.add(TrackFactory.scaleY(cnv(vkf2.y, new FloatKeyPoints(), duration)))
 		}
-		if (vkf2.getZCount() > 0) {
-			track.tracks.add(TrackFactory.scaleZ(cnv(vkf2.getZList(), new FloatKeyPoints(), duration)))
+		if (vkf2.hasZ) {
+			track.tracks.add(TrackFactory.scaleZ(cnv(vkf2.z, new FloatKeyPoints(), duration)))
 		}
 
-		val vkf3 = transforms.getRotation();
-		if (vkf3.getXCount() > 0) {
-			track.tracks.add(TrackFactory.rotationX(cnv(vkf3.getXList(), new FloatKeyPoints(), duration)));
+		val vkf3 = transforms.getRotation()
+		if (vkf3.hasX) {
+			track.tracks.add(TrackFactory.rotationX(cnv(vkf3.x, new FloatKeyPoints(), duration)))
 		}
-		if (vkf3.getYCount() > 0) {
-			track.tracks.add(TrackFactory.rotationY(cnv(vkf3.getYList(), new FloatKeyPoints(), duration)));
+		if (vkf3.hasY) {
+			track.tracks.add(TrackFactory.rotationY(cnv(vkf3.y, new FloatKeyPoints(), duration)))
 		}
-		if (vkf3.getZCount() > 0) {
-			track.tracks.add(TrackFactory.rotationZ(cnv(vkf3.getZList(), new FloatKeyPoints(), duration)));
+		if (vkf3.hasZ) {
+			track.tracks.add(TrackFactory.rotationZ(cnv(vkf3.z, new FloatKeyPoints(), duration)))
 		}
-		if (vkf3.getWCount() > 0) {
-			track.tracks.add(TrackFactory.rotationW(cnv(vkf3.getWList(), new FloatKeyPoints(), duration)));
+		if (vkf3.hasW) {
+			track.tracks.add(TrackFactory.rotationW(cnv(vkf3.w, new FloatKeyPoints(), duration)))
 		}
 		track
 	}
 
-	def FloatKeyPoints cnv(List<KeyFrame> src, FloatKeyPoints dst, float duration) {
-		val times = newFloatArrayOfSize(src.size())
-		val values = newFloatArrayOfSize(src.size())
+	def FloatKeyPoints cnv(KeyPoints src, FloatKeyPoints dst, float duration) {
+		val times = newFloatArrayOfSize(src.durationRatioCount)
+		val values = newFloatArrayOfSize(src.durationRatioCount)
 		for(var i = 0; i < times.length; i++) {
-			val kf = src.get(i)
-			times.set(i, kf.getDurationRatio() * duration)
-			values.set(i, kf.getValue())
+			times.set(i, src.durationRatioList.get(i) * duration)
+			values.set(i, src.valueList.get(i))
 		}
 		dst.setKeyPoints(times, values)
-		dst.setEases(null, new Identity())
+		if (src.interpolationCount  == src.durationRatioCount) {
+			val eases = <Interpolation>newArrayOfSize(src.interpolationCount)
+			for(var i = 0; i < eases.length; i++) {
+				eases.set(i, cnv(i, src.interpolationList, src.bezierParamsList))
+			}
+			dst.setEases(eases, Interpolations.linear)
+		} else {
+			dst.setEases(null, Interpolations.linear)
+		}
 		dst
+	}
+
+	def Interpolation cnv(int i, List<InterpolationFct> fcts, List<BezierParams> bps) {
+		switch(fcts.get(i)) {
+			case linear: Interpolations.linear
+			case constant: Interpolations.constant
+			case bezier: {
+				val bp = bps.get(i)
+				Interpolations.cubicBezier(bp.h0X, bp.h0Y, bp.h1X, bp.h1Y)
+			}
+		}
 	}
 
 	def void mergeSkeletons(Datas.Data src, Node root, Map<String, Object> components, Logger log) {

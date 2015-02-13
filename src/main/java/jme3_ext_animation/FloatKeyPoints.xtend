@@ -24,12 +24,12 @@ class FloatKeyPoints implements Savable {
 	/**
 	 * The between frame, eases[i] to use for values[i] and values[i+1];
 	 */
-	var FloatFunction[] eases
+	var Interpolation[] eases
 
 	/**
 	 * The default ease to use.
 	 */
-	var FloatFunction easeDefault = new Identity()
+	var Interpolation easeDefault = Interpolations.linear
 
 	new() {
 	}
@@ -42,7 +42,7 @@ class FloatKeyPoints implements Savable {
 		this.values = values
 	}
 
-	def setEases(FloatFunction[] eases, FloatFunction easeDefault) {
+	def setEases(Interpolation[] eases, Interpolation easeDefault) {
 		this.eases = eases
 		this.easeDefault = easeDefault
 	}
@@ -54,7 +54,7 @@ class FloatKeyPoints implements Savable {
 		} else  if (time < 0 || lastFrame == 0) {
 			values.get(0)
 		} else if (time >= times.get(lastFrame)) {
-			values.get(0)
+			values.get(lastFrame)
 		} else {
 			var startFrame = 0
 			var endFrame = 1
@@ -64,12 +64,11 @@ class FloatKeyPoints implements Savable {
 				endFrame = i + 1
 			}
 			var blend = (time - times.get(startFrame)) / (times.get(endFrame) - times.get(startFrame));
-			blend = easeAt(startFrame).apply(blend)
-			values.get(startFrame) + blend * (values.get(endFrame) - values.get(startFrame))
+			easeAt(startFrame).apply(blend, values.get(startFrame), values.get(endFrame))
 		}
 	}
 
-	def FloatFunction easeAt(int idx) {
+	def Interpolation easeAt(int idx) {
 		if (eases != null && idx < eases.length) eases.get(idx) else easeDefault
 	}
 

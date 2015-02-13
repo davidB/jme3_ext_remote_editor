@@ -8,101 +8,101 @@ public class TrackFactory {
 
 	static def FloatKeyPointsTrack translationX(FloatKeyPoints points) {
 		new FloatKeyPointsTrack(points){
-			override apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 				val s = control.getSpatial()
-				val v = control.getSpatial().getLocalTranslation()
-				v.x = value
+				val v = s.getLocalTranslation()
+				v.x += delta
 				s.localTranslation = v
 			}
 		}
 	}
 	static def FloatKeyPointsTrack translationY(FloatKeyPoints points) {
 		new FloatKeyPointsTrack(points){
-			override apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 				val s = control.getSpatial()
-				val v = control.getSpatial().getLocalTranslation()
-				v.x = value
+				val v = s.getLocalTranslation()
+				v.y += delta
 				s.localTranslation = v
 			}
 		}
 	}
 	static def FloatKeyPointsTrack translationZ(FloatKeyPoints points) {
 		new FloatKeyPointsTrack(points){
-			override void apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
-				val s = control.getSpatial();
-				val v = control.getSpatial().getLocalTranslation();
-				v.x = value;
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+				val s = control.getSpatial()
+				val v = s.getLocalTranslation()
+				v.z += delta
 				s.localTranslation = v
 			}
 		}
 	}
 	static def FloatKeyPointsTrack rotationX(FloatKeyPoints points) {
 		new FloatKeyPointsTrack(points){
-			override apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 				val s = control.getSpatial()
-				val v = control.getSpatial().getLocalRotation()
-				v.set(value, v.getY(), v.getZ(), v.getW())
-				s.setLocalRotation(v)
+				val v = s.getLocalRotation()
+				v.set(v.getY() + delta, v.getY(), v.getZ(), v.getW())
+				s.localRotation = v
 			}
 		}
 	}
 	static def FloatKeyPointsTrack rotationY(FloatKeyPoints points) {
 		new FloatKeyPointsTrack(points){
-			override void apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 				val s = control.getSpatial()
-				val v = control.getSpatial().getLocalRotation()
-				v.set(v.getX(), value, v.getZ(), v.getW())
-				s.setLocalRotation(v)
+				val v = s.getLocalRotation()
+				v.set(v.getY(), v.getY() + delta, v.getZ(), v.getW())
+				s.localRotation = v
 			}
 		}
 	}
 	static def FloatKeyPointsTrack rotationZ(FloatKeyPoints points) {
 		new FloatKeyPointsTrack(points){
-			override void apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 				val s = control.getSpatial()
-				val v = control.getSpatial().getLocalRotation()
-				v.set(v.getX(), v.getY(), value, v.getW())
-				s.setLocalRotation(v)
+				val v = s.getLocalRotation()
+				v.set(v.getY(), v.getY(), v.getZ() + delta, v.getW())
+				s.localRotation = v
 			}
 		}
 	}
 	static def FloatKeyPointsTrack rotationW(FloatKeyPoints points) {
 		return new FloatKeyPointsTrack(points){
-			override apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 				val s = control.getSpatial()
-				val v = control.getSpatial().getLocalRotation()
-				v.set(v.getX(), v.getY(), v.getZ(), value)
-				s.setLocalRotation(v)
+				val v = s.getLocalRotation()
+				v.set(v.getY(), v.getY(), v.getZ(), v.getW() + delta)
+				s.localRotation = v
 			}
 		}
 	}
 	static def FloatKeyPointsTrack scaleX(FloatKeyPoints points) {
 		new FloatKeyPointsTrack(points){
-			override apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 				val s = control.getSpatial()
-				val v = control.getSpatial().getLocalScale()
-				v.x = value
-				s.setLocalScale(v)
+				val v = s.getLocalScale()
+				v.x += delta
+				s.localScale = v
 			}
 		}
 	}
 	static def FloatKeyPointsTrack scaleY(FloatKeyPoints points) {
 		new FloatKeyPointsTrack(points){
-			override apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 				val s = control.getSpatial()
-				val v = control.getSpatial().getLocalScale()
-				v.y = value
-				s.setLocalScale(v)
+				val v = s.getLocalScale()
+				v.y += delta
+				s.localScale = v
 			}
 		}
 	}
 	static def FloatKeyPointsTrack scaleZ(FloatKeyPoints points) {
 		return new FloatKeyPointsTrack(points){
-			override apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 				val s = control.getSpatial()
-				val v = control.getSpatial().getLocalScale()
-				v.z = value
-				s.setLocalScale(v)
+				val v = s.getLocalScale()
+				v.z += delta
+				s.localScale = v
 			}
 		}
 	}

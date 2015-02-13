@@ -18,6 +18,7 @@ class FloatKeyPointsTrack implements Track {
 	 * The times of the animations frames.
 	 */
 	protected var FloatKeyPoints points
+	protected var lastValue = Float.MIN_VALUE
 
 	new() {
 	}
@@ -26,7 +27,16 @@ class FloatKeyPointsTrack implements Track {
 		this.points = points;
 	}
 
-	protected def void apply(float value, float weight, AnimControl control, AnimChannel channel, TempVars vars){
+	/**
+	 * method to override by concrete Track
+	 * @param value the result value from interpolation between keypoints
+	 * @param delta the delta (value - previous value), can be used to do relative transformation
+	 * @param weight same as setTime()
+	 * @param control same as setTime()
+	 * @param channel same as setTime()
+	 * @param vars same as setTime()
+	 */
+	protected def void apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars){
 	}
 
 	/**
@@ -36,7 +46,12 @@ class FloatKeyPointsTrack implements Track {
 	 */
 	override setTime(float time, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
 		if (points != null) {
-			apply(points.valueAt(time), weight, control, channel, vars);
+			val value = points.valueAt(time)
+			if (lastValue == Float.MIN_VALUE || time <= 0) {
+				lastValue = value
+			}
+			apply(value, value - lastValue, weight, control, channel, vars);
+			lastValue = value
 		}
 	}
 
