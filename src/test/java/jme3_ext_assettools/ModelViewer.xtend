@@ -22,8 +22,8 @@ import java.util.logging.Handler
 import java.util.logging.Level
 import java.util.logging.LogManager
 import java.util.logging.Logger
-import jme3_ext_pgex.Pgex
-import jme3_ext_pgex.PgexLoader
+import jme3_ext_xbuf.Xbuf
+import jme3_ext_xbuf.XbufLoader
 import jme3_ext_remote_editor.AppState4RemoteCommand
 import jme3_ext_spatial_explorer.Helper
 import org.slf4j.bridge.SLF4JBridgeHandler
@@ -194,7 +194,7 @@ public class ModelViewer {
 			assetManager.registerLoader(typeof(OBJLoader), "obj")
 			assetManager.registerLoader(typeof(MTLoaderExt), "mtl")
 			assetManager.registerLoader(typeof(BlenderLoader), "blend")
-			assetManager.registerLoader(typeof(PgexLoader), "pgex")
+			assetManager.registerLoader(typeof(XbufLoader), "xbuf")
 			null
 		]
 	}
@@ -227,8 +227,8 @@ public class ModelViewer {
 
 	def setupRemoteCommand(int port) {
 		app.enqueue[
-			val pgex = new Pgex(app.getAssetManager())
-			app.getStateManager().attach(new AppState4RemoteCommand(port, pgex))
+			val xbuf = new Xbuf(app.getAssetManager())
+			app.getStateManager().attach(new AppState4RemoteCommand(port, xbuf))
 			null
 		]
 	}

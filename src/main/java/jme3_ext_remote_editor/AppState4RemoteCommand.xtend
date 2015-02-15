@@ -1,6 +1,6 @@
 package jme3_ext_remote_editor;
 
-import jme3_ext_pgex.Pgex;
+import jme3_ext_xbuf.Xbuf;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -19,7 +19,7 @@ import org.eclipse.xtend.lib.annotations.FinalFieldsConstructor
 class AppState4RemoteCommand extends AbstractAppState {
 
 	public val int port
-	public val Pgex pgex
+	public val Xbuf xbuf
 
 	var ChannelFuture f;
 	var EventLoopGroup bossGroup
@@ -37,7 +37,7 @@ class AppState4RemoteCommand extends AbstractAppState {
 			override initChannel(SocketChannel ch) {
 				val rh = new ReqHandler(
 					AppState4RemoteCommand.this.app
-					, AppState4RemoteCommand.this.pgex
+					, AppState4RemoteCommand.this.xbuf
 				);
 				ch.pipeline().addLast(
 					new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 1, 4)

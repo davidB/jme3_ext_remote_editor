@@ -1,4 +1,4 @@
-package jme3_ext_pgex;
+package jme3_ext_xbuf;
 
 import com.google.protobuf.ExtensionRegistry
 import com.jme3.animation.AnimControl
@@ -43,22 +43,22 @@ import jme3_ext_animation.CompositeTrack
 import jme3_ext_animation.FloatKeyPoints
 import jme3_ext_animation.TrackFactory
 import org.slf4j.Logger
-import pgex.Datas
-import pgex.Datas.Data
-import pgex_ext.AnimationsKf
-import pgex_ext.AnimationsKf.AnimationKF
-import pgex_ext.AnimationsKf.TransformKF
-import pgex_ext.CustomParams
-import pgex_ext.CustomParams.CustomParam
-import pgex_ext.CustomParams.CustomParamList
+import xbuf.Datas
+import xbuf.Datas.Data
+import xbuf_ext.AnimationsKf
+import xbuf_ext.AnimationsKf.AnimationKF
+import xbuf_ext.AnimationsKf.TransformKF
+import xbuf_ext.CustomParams
+import xbuf_ext.CustomParams.CustomParam
+import xbuf_ext.CustomParams.CustomParamList
 import jme3_ext_animation.Interpolation
 import jme3_ext_animation.Interpolations
-import pgex_ext.AnimationsKf.KeyPoints
-import pgex_ext.AnimationsKf.KeyPoints.InterpolationFct
-import pgex_ext.AnimationsKf.BezierParams
+import xbuf_ext.AnimationsKf.KeyPoints
+import xbuf_ext.AnimationsKf.KeyPoints.InterpolationFct
+import xbuf_ext.AnimationsKf.BezierParams
 
 // TODO use a Validation object (like in scala/scalaz) with option to log/dump stacktrace
-public class Pgex {
+public class Xbuf {
 	final AssetManager assetManager;
 	final Material defaultMaterial;
 	public final ExtensionRegistry registry;
@@ -374,9 +374,9 @@ public class Pgex {
 		for(Datas.Light srcl : src.getLightsList()) {
 			//TODO manage parent hierarchy
 			val id = srcl.getId()
-			var dst = components.get(id) as PgexLightControl
+			var dst = components.get(id) as XbufLightControl
 			if (dst == null) {
-				dst = new PgexLightControl()
+				dst = new XbufLightControl()
 				components.put(id, dst)
 				root.addControl(dst)
 			}
@@ -550,15 +550,15 @@ public class Pgex {
 						c.addAnim(op1)
 						done = true
 					}
-				} else if (op1 instanceof CustomParamList) { // <--> pgex_ext.Customparams.CustomParams
+				} else if (op1 instanceof CustomParamList) { // <--> xbuf_ext.Customparams.CustomParams
 					if (op2 instanceof Spatial) { // Geometry, Node
 						for(CustomParam p : op1.getParamsList()) {
 							mergeToUserData(p, op2, log)
 						}
 						done = true
 					}
-				}else if (op1 instanceof Geometry) { // <--> pgex.Datas.Geometry
-					if (op2 instanceof PgexLightControl) {
+				}else if (op1 instanceof Geometry) { // <--> xbuf.Datas.Geometry
+					if (op2 instanceof XbufLightControl) {
 						op2.getSpatial().removeControl(op2);
 						op1.addControl(op2)
 						// TODO raise an alert, strange to link LightNode and Geometry
@@ -573,24 +573,24 @@ public class Pgex {
 						link(op1, op2)
 						done = true
 					}
-				} else if (op1 instanceof PgexLightControl) { // <--> pgex.Datas.Light
+				} else if (op1 instanceof XbufLightControl) { // <--> xbuf.Datas.Light
 					if (op2 instanceof Node) {
 						op1.getSpatial().removeControl(op1)
 						op2.addControl(op1)
 						done = true
 					}
-				} else if (op1 instanceof Material) { // <--> pgex.Datas.Material
+				} else if (op1 instanceof Material) { // <--> xbuf.Datas.Material
 					if (op2 instanceof Node) {
 						op2.setMaterial(op1)
 						done = true
 					}
-				} else if (op1 instanceof Skeleton) { // <--> pgex.Datas.Skeleton
+				} else if (op1 instanceof Skeleton) { // <--> xbuf.Datas.Skeleton
 					if (op2 instanceof Node) {
 						link(op2, op1)
 						done = true
 					}
 					done = true
-				} else if (op1 instanceof Node) { // <--> pgex.Datas.TObject
+				} else if (op1 instanceof Node) { // <--> xbuf.Datas.TObject
 					if (op2 instanceof Node) {
 						op1.attachChild(op2)
 						done = true

@@ -1,4 +1,4 @@
-package jme3_ext_pgex;
+package jme3_ext_xbuf;
 
 import com.jme3.export.JmeExporter
 import com.jme3.export.JmeImporter
@@ -15,9 +15,9 @@ import com.jme3.scene.control.Control
 import com.jme3.util.TempVars
 
 /**
- * Apply current spatial's Transform to the light, following pgex rules (!= jme's LightControl).
+ * Apply current spatial's Transform to the light, following xbuf rules (!= jme's LightControl).
  */
-class PgexLightControl extends AbstractControl {
+class XbufLightControl extends AbstractControl {
 	private static val LIGHT_NAME = "light"
 
 	public var Light light
@@ -52,7 +52,7 @@ class PgexLightControl extends AbstractControl {
 	}
 
 	override Control cloneForSpatial(Spatial newSpatial) {
-		val control = new PgexLightControl()
+		val control = new XbufLightControl()
 		control.light = light
 		control.setSpatial(newSpatial);
 		control.setEnabled(isEnabled());

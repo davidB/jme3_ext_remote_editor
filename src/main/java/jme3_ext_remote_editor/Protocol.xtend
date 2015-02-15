@@ -7,6 +7,6 @@ class Protocol {
 		public static val askScreenshot = 0x03 as byte
 		public static val rawScreenshot = 0x04 as byte
 		public static val msgpack = 0x05 as byte
-		public static val pgexCmd = 0x06 as byte
+		public static val xbufCmd = 0x06 as byte
 	}
 }

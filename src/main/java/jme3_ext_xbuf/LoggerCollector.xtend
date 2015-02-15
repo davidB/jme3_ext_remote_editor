@@ -1,4 +1,4 @@
-package jme3_ext_pgex;
+package jme3_ext_xbuf;
 
 import java.util.LinkedList
 import java.util.List

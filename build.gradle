@@ -45,7 +45,7 @@ dependencies {
 	compile "org.slf4j:slf4j-api:${v_slf4j}"
 	compile "org.slf4j:jul-to-slf4j:${v_slf4j}"
 	compile 'io.netty:netty-handler:4.0.24.Final'
-	compile 'net.alchim31.pgex:pgex:0+'
+	compile 'net.alchim31.xbuf:xbuf:0+'
 	runtime "com.jme3:jme3-desktop:${v_jme3}"
 	runtime "com.jme3:jme3-lwjgl:${v_jme3}"
 	testCompile 'junit:junit:4.12'

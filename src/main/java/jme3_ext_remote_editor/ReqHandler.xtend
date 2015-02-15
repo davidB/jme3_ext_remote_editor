@@ -9,14 +9,14 @@ import io.netty.channel.ChannelHandlerContext
 import java.io.File
 import java.util.HashMap
 import java.util.concurrent.Executors
-import jme3_ext_pgex.LoggerCollector
-import jme3_ext_pgex.Pgex
+import jme3_ext_xbuf.LoggerCollector
+import jme3_ext_xbuf.Xbuf
 import org.eclipse.xtend.lib.annotations.FinalFieldsConstructor
 import org.slf4j.LoggerFactory
-import pgex.Cmds
-import pgex.Cmds.Cmd
-import pgex.Cmds.SetEye.ProjMode
-import pgex.Datas
+import xbuf.Cmds
+import xbuf.Cmds.Cmd
+import xbuf.Cmds.SetEye.ProjMode
+import xbuf.Datas
 
 import static io.netty.buffer.Unpooled.wrappedBuffer
 
@@ -27,7 +27,7 @@ class ReqHandler {
 	public val log = LoggerFactory.getLogger(this.getClass)
 
 	public val SimpleApplication app;
-	public val Pgex pgex;
+	public val Xbuf xbuf;
 	private val folders = new HashMap<String, File>();
 
 	def enable() {
@@ -63,7 +63,7 @@ class ReqHandler {
 		try {
 			switch(k) {
 				case Protocol.Kind.askScreenshot : askScreenshot(ctx, msg)
-				case Protocol.Kind.pgexCmd : pgexCmd(ctx, msg)
+				case Protocol.Kind.xbufCmd : xbufCmd(ctx, msg)
 				default : System.out.println("Unsupported kind of message : " + k)
 			}
 		} catch(Exception exc) {
@@ -109,11 +109,11 @@ class ReqHandler {
 		]
 	}
 
-	def pgexCmd(ChannelHandlerContext ctx, ByteBuf msg) {
+	def xbufCmd(ChannelHandlerContext ctx, ByteBuf msg) {
 		try {
 			val b = newByteArrayOfSize(msg.readableBytes())
 			msg.readBytes(b);
-			val cmd0 = Cmd.parseFrom(b, pgex.registry);
+			val cmd0 = Cmd.parseFrom(b, xbuf.registry);
 			switch(cmd0.getCmdCase()) {
 				case SETEYE: setEye(ctx, cmd0.getSetEye())
 				case SETDATA: setData(ctx, cmd0.getSetData())
@@ -129,16 +129,16 @@ class ReqHandler {
 
 	def setData(ChannelHandlerContext ctx, Datas.Data data) {
 		remoteCtx.todos.add [RemoteCtx rc |
-			val pgexLogger = new LoggerCollector("pgex");
-			pgex.merge(data, rc.root, rc.components, pgexLogger);
-			pgexLogger.dumpTo(log);
-			val errorsCnt = pgexLogger.countOf(LoggerCollector.Level.ERROR);
+			val xbufLogger = new LoggerCollector("xbuf");
+			xbuf.merge(data, rc.root, rc.components, xbufLogger);
+			xbufLogger.dumpTo(log);
+			val errorsCnt = xbufLogger.countOf(LoggerCollector.Level.ERROR);
 			if (errorsCnt > 0) {
-				log.error("pgex reading, error count : {}", errorsCnt);
+				log.error("xbuf reading, error count : {}", errorsCnt);
 			}
-			val warnsCnt = pgexLogger.countOf(LoggerCollector.Level.WARN);
+			val warnsCnt = xbufLogger.countOf(LoggerCollector.Level.WARN);
 			if (warnsCnt > 0) {
-				log.warn("pgex reading, warn count : {}", warnsCnt);
+				log.warn("xbuf reading, warn count : {}", warnsCnt);
 			}
 		]
 	}
@@ -146,9 +146,9 @@ class ReqHandler {
 	def setEye(ChannelHandlerContext ctx, Cmds.SetEye cmd) {
 		remoteCtx.todos.add[rc |
 			val cam = rc.cam;
-			val rot = pgex.cnv(cmd.getRotation(), cam.getLocalRotation());
+			val rot = xbuf.cnv(cmd.getRotation(), cam.getLocalRotation());
 			cam.setLocalRotation(rot.clone());
-			cam.setLocalTranslation(pgex.cnv(cmd.getLocation(), cam.getLocalTranslation()));
+			cam.setLocalTranslation(xbuf.cnv(cmd.getLocation(), cam.getLocalTranslation()));
 			val cam0 = rc
 					.view
 					.getViewPort()
@@ -158,7 +158,7 @@ class ReqHandler {
 			if (cmd.hasNear()) cam0.setFrustumNear(cmd.getNear());
 			if (cmd.hasFar()) cam0.setFrustumFar(cmd.getFar());
 			if (cmd.hasProjection()) {
-				val proj = pgex.cnv(cmd.getProjection(), new Matrix4f());
+				val proj = xbuf.cnv(cmd.getProjection(), new Matrix4f());
 				cam0.setParallelProjection(cmd.getProjMode() == ProjMode.orthographic);
 				cam0.setProjectionMatrix(proj);
 			}
