@@ -6,7 +6,7 @@ import com.jme3.animation.Animation
 import com.jme3.animation.Bone
 import com.jme3.animation.Skeleton
 import com.jme3.animation.SkeletonControl
-import com.jme3.animation.Track
+import com.jme3.animation.SpatialTrack
 import com.jme3.asset.AssetManager
 import com.jme3.light.AmbientLight
 import com.jme3.light.DirectionalLight
@@ -39,23 +39,17 @@ import com.jme3.util.TangentBinormalGenerator
 import java.util.HashMap
 import java.util.List
 import java.util.Map
-import jme3_ext_animation.CompositeTrack
-import jme3_ext_animation.FloatKeyPoints
-import jme3_ext_animation.TrackFactory
+import jme3_ext_animation.NamedBoneTrack
 import org.slf4j.Logger
 import xbuf.Datas
 import xbuf.Datas.Data
 import xbuf_ext.AnimationsKf
 import xbuf_ext.AnimationsKf.AnimationKF
-import xbuf_ext.AnimationsKf.TransformKF
+import xbuf_ext.AnimationsKf.SampledTransform
 import xbuf_ext.CustomParams
 import xbuf_ext.CustomParams.CustomParam
 import xbuf_ext.CustomParams.CustomParamList
-import jme3_ext_animation.Interpolation
-import jme3_ext_animation.Interpolations
-import xbuf_ext.AnimationsKf.KeyPoints
-import xbuf_ext.AnimationsKf.KeyPoints.InterpolationFct
-import xbuf_ext.AnimationsKf.BezierParams
+import java.nio.ByteBuffer
 
 // TODO use a Validation object (like in scala/scalaz) with option to log/dump stacktrace
 public class Xbuf {
@@ -194,15 +188,18 @@ public class Xbuf {
 		for(Datas.IndexArray va : src.getIndexArraysList()) {
 			dst.setBuffer(VertexBuffer.Type.Index, va.getInts().getStep(), hack_cnv(va.getInts()))
 		}
-		// basic check
-		val nbVertices = dst.getBuffer(VertexBuffer.Type.Position).getNumElements()
-		for(IntMap.Entry<VertexBuffer> evb : dst.getBuffers()) {
-			if (evb.getKey() != VertexBuffer.Type.Index.ordinal()) {
-				if (nbVertices != evb.getValue().getNumElements()) {
-					log.warn("size of vertex buffer {} is not equals to vertex buffer for position: {} != {}", VertexBuffer.Type.values().get(evb.getKey()), evb.getValue().getNumElements(), nbVertices)
-				}
-			}
+		if (src.hasSkin) {
+			applySkin(src.skin, dst)
 		}
+//		// basic check
+//		val nbVertices = dst.getBuffer(VertexBuffer.Type.Position).getNumElements()
+//		for(IntMap.Entry<VertexBuffer> evb : dst.getBuffers()) {
+//			if (evb.getKey() != VertexBuffer.Type.Index.ordinal()) {
+//				if (nbVertices != evb.getValue().getNumElements()) {
+//					log.warn("size of vertex buffer {} is not equals to vertex buffer for position: {} != {}", VertexBuffer.Type.values().get(evb.getKey()), evb.getValue().getNumElements(), nbVertices)
+//				}
+//			}
+//		}
 		//TODO optimize lazy create Tangent when needed (for normal map ?)
 		if (dst.getBuffer(VertexBuffer.Type.Tangent) == null && dst.getBuffer(VertexBuffer.Type.TexCoord) != null) {
 			TangentBinormalGenerator.generate(dst)
@@ -210,6 +207,58 @@ public class Xbuf {
 
 		dst.updateCounts()
 		dst.updateBound()
+		dst
+	}
+
+	def Mesh applySkin(Datas.Skin skin, Mesh dst) {
+		System.out.println(">>>>>>>>>> ADD SKIN")
+		dst.clearBuffer(Type.BoneIndex);
+		dst.clearBuffer(Type.BoneWeight);
+
+		var maxWeightsPerVert = 0
+		val nb = skin.boneCountCount
+		val indexPad4 = ByteBuffer.allocate(nb * 4)
+		val weightPad4 = newFloatArrayOfSize(nb * 4)
+		var isrc = 0
+		for(var i = 0; i < nb; i++) {
+			var totalWeight = 0f
+			val cnt = skin.boneCountList.get(i)
+			maxWeightsPerVert = Math.max(maxWeightsPerVert, Math.min(4, cnt))
+			for(var j = 0;  j < 4; j++) {
+				val k = i * 4 + j
+				var index = 0 as byte
+				var weight = 0
+				if (j < cnt) {
+					weight = skin.boneWeightPer100List.get(isrc + j)
+					index = skin.boneIndexList.get(isrc + j).byteValue
+				}
+				totalWeight += weight
+				indexPad4.put(k, index)
+				weightPad4.set(k, weight)
+			}
+			if (totalWeight > 0) {
+				val normalizer = 1.0f / totalWeight
+				for(var j = 0;  j < 4; j++) {
+					val k = i * 4 + j
+					weightPad4.set(k, weightPad4.get(k) * normalizer)
+				}
+			}
+			isrc += cnt
+		}
+		dst.setBuffer(Type.BoneIndex, 4, indexPad4)
+		dst.setBuffer(Type.BoneWeight, 4, weightPad4)
+		dst.setMaxNumWeights(maxWeightsPerVert)
+
+		//creating empty buffers for HW skinning
+		//the buffers will be setup if ever used.
+		val weightsHW = new VertexBuffer(Type.HWBoneWeight);
+		val indicesHW = new VertexBuffer(Type.HWBoneIndex);
+		//setting usage to cpuOnly so that the buffer is not send empty to the GPU
+		indicesHW.setUsage(VertexBuffer.Usage.CpuOnly)
+		weightsHW.setUsage(VertexBuffer.Usage.CpuOnly)
+		dst.setBuffer(weightsHW)
+		dst.setBuffer(indicesHW)
+		dst.generateBindPose(true)
 		dst
 	}
 
@@ -248,86 +297,168 @@ public class Xbuf {
 	}
 
 	def Animation makeAnimation(AnimationKF e, Logger log) {
-		val a =  new Animation(e.getName(), e.getDuration())
+		val a =  new Animation(e.getName(), (e.getDuration() as float) / 1000f)
 		for(AnimationsKf.Clip clip: e.getClipsList()) {
-			System.out.println("add clip : " + clip.hasTransforms())
-			if (clip.hasTransforms()) {
-				a.addTrack(makeTrack(clip.getTransforms(), e.getDuration()))
+			if (clip.hasSampledTransform()) {
+				val t = if (clip.sampledTransform.hasBoneName()) {
+					makeTrackBone(clip.sampledTransform)
+				} else {
+					makeTrackSpatial(clip.sampledTransform)
+				}
+				a.addTrack(t)
 			}
 		}
 		a
 	}
 
-	def Track makeTrack(TransformKF transforms, float duration) {
-		val track = new CompositeTrack()
-		val vkf = transforms.getTranslation()
-		if (vkf.hasX) {
-			track.tracks.add(TrackFactory.translationX(cnv(vkf.x, new FloatKeyPoints(), duration)))
-		}
-		if (vkf.hasY) {
-			track.tracks.add(TrackFactory.translationY(cnv(vkf.y, new FloatKeyPoints(), duration)))
-		}
-		if (vkf.hasZ) {
-			track.tracks.add(TrackFactory.translationZ(cnv(vkf.z, new FloatKeyPoints(), duration)))
-		}
-
-		val vkf2 = transforms.getScale()
-		if (vkf2.hasX) {
-			track.tracks.add(TrackFactory.scaleX(cnv(vkf2.x, new FloatKeyPoints(), duration)))
-		}
-		if (vkf2.hasY) {
-			track.tracks.add(TrackFactory.scaleY(cnv(vkf2.y, new FloatKeyPoints(), duration)))
-		}
-		if (vkf2.hasZ) {
-			track.tracks.add(TrackFactory.scaleZ(cnv(vkf2.z, new FloatKeyPoints(), duration)))
-		}
-
-		val vkf3 = transforms.getRotation()
-		if (vkf3.hasX) {
-			track.tracks.add(TrackFactory.rotationX(cnv(vkf3.x, new FloatKeyPoints(), duration)))
-		}
-		if (vkf3.hasY) {
-			track.tracks.add(TrackFactory.rotationY(cnv(vkf3.y, new FloatKeyPoints(), duration)))
-		}
-		if (vkf3.hasZ) {
-			track.tracks.add(TrackFactory.rotationZ(cnv(vkf3.z, new FloatKeyPoints(), duration)))
-		}
-		if (vkf3.hasW) {
-			track.tracks.add(TrackFactory.rotationW(cnv(vkf3.w, new FloatKeyPoints(), duration)))
-		}
-		track
+	static def valOf(List<Float> values, int i, float vdef) {
+		if (values.size > i) values.get(i) else vdef
 	}
 
-	def FloatKeyPoints cnv(KeyPoints src, FloatKeyPoints dst, float duration) {
-		val times = newFloatArrayOfSize(src.durationRatioCount)
-		val values = newFloatArrayOfSize(src.durationRatioCount)
-		for(var i = 0; i < times.length; i++) {
-			times.set(i, src.durationRatioList.get(i) * duration)
-			values.set(i, src.valueList.get(i))
-		}
-		dst.setKeyPoints(times, values)
-		if (src.interpolationCount  == src.durationRatioCount) {
-			val eases = <Interpolation>newArrayOfSize(src.interpolationCount)
-			for(var i = 0; i < eases.length; i++) {
-				eases.set(i, cnv(i, src.interpolationList, src.bezierParamsList))
+	def cnvToVector3fArray(List<Float> xs, List<Float> ys, List<Float> zs) {
+		val size = Math.max(Math.max(xs.size, ys.size), zs.size)
+		if (size > 0) {
+			val l = <Vector3f>newArrayOfSize(size)
+			for(var i = 0; i < size; i++) {
+				l.set(i, new Vector3f(xs.valOf(i, 0f), ys.valOf(i, 0f), zs.valOf(i, 0f)))
 			}
-			dst.setEases(eases, Interpolations.linear)
-		} else {
-			dst.setEases(null, Interpolations.linear)
-		}
-		dst
+			l
+		} else null
 	}
 
-	def Interpolation cnv(int i, List<InterpolationFct> fcts, List<BezierParams> bps) {
-		switch(fcts.get(i)) {
-			case linear: Interpolations.linear
-			case constant: Interpolations.constant
-			case bezier: {
-				val bp = bps.get(i)
-				Interpolations.cubicBezier(bp.h0X, bp.h0Y, bp.h1X, bp.h1Y)
+	def cnvToQuaternionArray(List<Float> xs, List<Float> ys, List<Float> zs, List<Float> ws) {
+		val size = Math.max(Math.max(xs.size, ys.size), zs.size)
+		if (size > 0) {
+			val l = <Quaternion>newArrayOfSize(size)
+			for(var i = 0; i < size; i++) {
+				l.set(i, new Quaternion(xs.valOf(i, 0f), ys.valOf(i, 0f), zs.valOf(i, 0f), ws.valOf(i, 0f)))
 			}
-		}
+			l
+		} else null
 	}
+
+	def makeTrackBone(SampledTransform bt) {
+		val times = newFloatArrayOfSize(bt.atCount)
+		bt.atList.forEach[v, i| times.set(i, (v as float)/ 1000f)]
+		val translations = cnvToVector3fArray(bt.translationXList, bt.translationYList, bt.translationZList)
+		val rotations = cnvToQuaternionArray(bt.rotationXList, bt.rotationYList, bt.rotationZList, bt.rotationWList)
+		val scales = cnvToVector3fArray(bt.scaleXList, bt.scaleYList, bt.scaleZList)
+		new NamedBoneTrack(bt.boneName, times, translations, rotations, scales)
+	}
+
+	def makeTrackSpatial(SampledTransform bt) {
+		val times = newFloatArrayOfSize(bt.atCount)
+		bt.atList.forEach[v, i| times.set(i, (v as float)/ 1000f)]
+		val translations = cnvToVector3fArray(bt.translationXList, bt.translationYList, bt.translationZList)
+		val rotations = cnvToQuaternionArray(bt.rotationXList, bt.rotationYList, bt.rotationZList, bt.rotationWList)
+		val scales = cnvToVector3fArray(bt.scaleXList, bt.scaleYList, bt.scaleZList)
+		new SpatialTrack(times, translations, rotations, scales)
+	}
+
+//	def Animation makeAnimation(AnimationKF e, Logger log) {
+//		val a =  new Animation(e.getName(), (e.getDuration() as float) / 1000f)
+//		for(AnimationsKf.Clip clip: e.getClipsList()) {
+//			System.out.println("add clip : " + clip.hasTransforms())
+//			if (clip.hasTransforms()) {
+//				val t = if (clip.getTransforms().hasBoneName) {
+//					makeTrackBone(clip.getTransforms())
+//				} else {
+//					makeTrackSpatial(clip.getTransforms())
+//				}
+//				a.addTrack(t)
+//			}
+//		}
+//		a
+//	}
+
+//	def Track makeTrackSpatial(TransformKF transforms) {
+//		val track = new CompositeTrack()
+//		val vkf = transforms.getTranslation()
+//		if (vkf.hasX) {
+//			track.tracks.add(TrackFactory.translationX(cnv(vkf.x, new FloatKeyPoints())))
+//		}
+//		if (vkf.hasY) {
+//			track.tracks.add(TrackFactory.translationY(cnv(vkf.y, new FloatKeyPoints())))
+//		}
+//		if (vkf.hasZ) {
+//			track.tracks.add(TrackFactory.translationZ(cnv(vkf.z, new FloatKeyPoints())))
+//		}
+//
+//		val vkf2 = transforms.getScale()
+//		if (vkf2.hasX) {
+//			track.tracks.add(TrackFactory.scaleX(cnv(vkf2.x, new FloatKeyPoints())))
+//		}
+//		if (vkf2.hasY) {
+//			track.tracks.add(TrackFactory.scaleY(cnv(vkf2.y, new FloatKeyPoints())))
+//		}
+//		if (vkf2.hasZ) {
+//			track.tracks.add(TrackFactory.scaleZ(cnv(vkf2.z, new FloatKeyPoints())))
+//		}
+//
+//		track
+//	}
+//
+//	def Track makeTrackBone(TransformKF transforms) {
+//		val track = new CompositeTrack()
+//		val vkf = transforms.getTranslation()
+//		val boneName = transforms.boneName
+//		if (vkf.hasX) {
+//			track.tracks.add(TrackFactory.translationX(cnv(vkf.x, new FloatKeyPoints()), boneName))
+//		}
+//		if (vkf.hasY) {
+//			track.tracks.add(TrackFactory.translationY(cnv(vkf.y, new FloatKeyPoints()), boneName))
+//		}
+//		if (vkf.hasZ) {
+//			track.tracks.add(TrackFactory.translationZ(cnv(vkf.z, new FloatKeyPoints()), boneName))
+//		}
+//
+//		val vkf2 = transforms.getScale()
+//		if (vkf2.hasX) {
+//			track.tracks.add(TrackFactory.scaleX(cnv(vkf2.x, new FloatKeyPoints()), boneName))
+//		}
+//		if (vkf2.hasY) {
+//			track.tracks.add(TrackFactory.scaleY(cnv(vkf2.y, new FloatKeyPoints()), boneName))
+//		}
+//		if (vkf2.hasZ) {
+//			track.tracks.add(TrackFactory.scaleZ(cnv(vkf2.z, new FloatKeyPoints()), boneName))
+//		}
+//
+//		track
+//	}
+//
+//	def FloatKeyPoints cnv(KeyPoints src, FloatKeyPoints dst) {
+//		if (src.atCount != src.valueCount) {
+//			throw new IllegalStateException(String.format("at.size %d != value.size %d", src.atCount, src.valueCount))
+//		}
+//		val times = newFloatArrayOfSize(src.atCount)
+//		val values = newFloatArrayOfSize(src.atCount)
+//		for(var i = 0; i < times.length; i++) {
+//			times.set(i, (src.atList.get(i) as float) / 1000f)
+//			values.set(i, src.valueList.get(i))
+//		}
+//		dst.setKeyPoints(times, values)
+//		if (src.interpolationCount  == src.atCount) {
+//			val eases = <Interpolation>newArrayOfSize(src.interpolationCount)
+//			for(var i = 0; i < eases.length; i++) {
+//				eases.set(i, cnv(i, src.interpolationList, src.bezierParamsList))
+//			}
+//			dst.setEases(eases, Interpolations.linear)
+//		} else {
+//			dst.setEases(null, Interpolations.linear)
+//		}
+//		dst
+//	}
+//
+//	def Interpolation cnv(int i, List<InterpolationFct> fcts, List<BezierParams> bps) {
+//		switch(fcts.get(i)) {
+//			case linear: Interpolations.linear
+//			case constant: Interpolations.constant
+//			case bezier: {
+//				val bp = bps.get(i)
+//				Interpolations.cubicBezier(bp.h0X, bp.h0Y, bp.h1X, bp.h1Y)
+//			}
+//		}
+//	}
 
 	def void mergeSkeletons(Datas.Data src, Node root, Map<String, Object> components, Logger log) {
 		for(Datas.Skeleton e : src.getSkeletonsList()) {
@@ -352,6 +483,7 @@ public class Xbuf {
 			)
 			db.put(src.getId(), b)
 			bones.set(i, b)
+			System.out.printf("bone : %s -> %d \n", b.name, i)
 		}
 		for(Datas.Relation r : e.getBonesGraphList()) {
 			val parent = db.get(r.getRef1())
@@ -543,7 +675,8 @@ public class Xbuf {
 					if (op2 instanceof Spatial) { // Geometry, Node
 						var c = op2.getControl(typeof(AnimControl))
 						if (c == null) {
-							c = new AnimControl()
+							val sc = op2.getControl(typeof(SkeletonControl))
+							c = if (sc != null) new AnimControl(sc.skeleton) else new AnimControl()
 							op2.addControl(c)
 						}
 						System.out.println("add Animation :" + op1)
@@ -608,9 +741,13 @@ public class Xbuf {
 		v.removeControl(typeof(SkeletonControl))
 		//update AnimControl if related to skeleton
 		val ac = v.getControl(typeof(AnimControl))
-		if (ac != null && ac.getSkeleton() != null) {
+		if (ac != null/* && ac.getSkeleton() != null*/) {
 			v.removeControl(ac)
-			v.addControl(new AnimControl(sk))
+			val ac2 = new AnimControl(sk)
+			val anims = new HashMap<String, Animation>()
+			ac.animationNames.forEach[name | anims.put(name, ac.getAnim(name).clone())]
+			ac2.animations = anims
+			v.addControl(ac2)
 		}
 		// SkeletonControl should be after AnimControl in the list of Controls
 		v.addControl(new SkeletonControl(sk))

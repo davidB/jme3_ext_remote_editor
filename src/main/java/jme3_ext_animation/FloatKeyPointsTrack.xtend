@@ -45,13 +45,17 @@ class FloatKeyPointsTrack implements Track {
 	 * @param time the current time of the animation
 	 */
 	override setTime(float time, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
-		if (points != null) {
-			val value = points.valueAt(time)
-			if (lastValue == Float.MIN_VALUE || time <= 0) {
+		try {
+			if (points != null) {
+				val value = points.valueAt(time)
+				if (lastValue == Float.MIN_VALUE || time <= 0) {
+					lastValue = value
+				}
+				apply(value, value - lastValue, weight, control, channel, vars);
 				lastValue = value
 			}
-			apply(value, value - lastValue, weight, control, channel, vars);
-			lastValue = value
+		} catch(Exception exc) {
+			exc.printStackTrace()
 		}
 	}
 

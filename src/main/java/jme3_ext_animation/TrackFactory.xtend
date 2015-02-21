@@ -36,46 +36,6 @@ public class TrackFactory {
 			}
 		}
 	}
-	static def FloatKeyPointsTrack rotationX(FloatKeyPoints points) {
-		new FloatKeyPointsTrack(points){
-			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
-				val s = control.getSpatial()
-				val v = s.getLocalRotation()
-				v.set(v.getY() + delta, v.getY(), v.getZ(), v.getW())
-				s.localRotation = v
-			}
-		}
-	}
-	static def FloatKeyPointsTrack rotationY(FloatKeyPoints points) {
-		new FloatKeyPointsTrack(points){
-			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
-				val s = control.getSpatial()
-				val v = s.getLocalRotation()
-				v.set(v.getY(), v.getY() + delta, v.getZ(), v.getW())
-				s.localRotation = v
-			}
-		}
-	}
-	static def FloatKeyPointsTrack rotationZ(FloatKeyPoints points) {
-		new FloatKeyPointsTrack(points){
-			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
-				val s = control.getSpatial()
-				val v = s.getLocalRotation()
-				v.set(v.getY(), v.getY(), v.getZ() + delta, v.getW())
-				s.localRotation = v
-			}
-		}
-	}
-	static def FloatKeyPointsTrack rotationW(FloatKeyPoints points) {
-		return new FloatKeyPointsTrack(points){
-			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
-				val s = control.getSpatial()
-				val v = s.getLocalRotation()
-				v.set(v.getY(), v.getY(), v.getZ(), v.getW() + delta)
-				s.localRotation = v
-			}
-		}
-	}
 	static def FloatKeyPointsTrack scaleX(FloatKeyPoints points) {
 		new FloatKeyPointsTrack(points){
 			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
@@ -103,6 +63,68 @@ public class TrackFactory {
 				val v = s.getLocalScale()
 				v.z += delta
 				s.localScale = v
+			}
+		}
+	}
+
+	// Bones
+	static def FloatKeyPointsTrack translationX(FloatKeyPoints points, String boneName) {
+		new FloatKeyPointsTrackBone(points, boneName){
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+				val s = findBone(control)
+				if (s != null) {
+					s.localPosition.x += delta * weight
+				}
+			}
+		}
+	}
+	static def FloatKeyPointsTrack translationY(FloatKeyPoints points, String boneName) {
+		new FloatKeyPointsTrackBone(points, boneName){
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+				val s = findBone(control)
+				if (s != null) {
+					s.localPosition.y += delta * weight
+				}
+			}
+		}
+	}
+	static def FloatKeyPointsTrack translationZ(FloatKeyPoints points, String boneName) {
+		new FloatKeyPointsTrackBone(points, boneName){
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+				val s = findBone(control)
+				if (s != null) {
+					s.localPosition.z += delta * weight
+				}
+			}
+		}
+	}
+	static def FloatKeyPointsTrack scaleX(FloatKeyPoints points, String boneName) {
+		new FloatKeyPointsTrackBone(points, boneName){
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+				val s = findBone(control)
+				if (s != null) {
+					s.localScale.x += delta * weight
+				}
+			}
+		}
+	}
+	static def FloatKeyPointsTrack scaleY(FloatKeyPoints points, String boneName) {
+		new FloatKeyPointsTrackBone(points, boneName){
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+				val s = findBone(control)
+				if (s != null) {
+					s.localScale.y += delta * weight
+				}
+			}
+		}
+	}
+	static def FloatKeyPointsTrack scaleZ(FloatKeyPoints points, String boneName) {
+		new FloatKeyPointsTrackBone(points, boneName){
+			override apply(float value, float delta, float weight, AnimControl control, AnimChannel channel, TempVars vars) {
+				val s = findBone(control)
+				if (s != null) {
+					s.localScale.z += delta * weight
+				}
 			}
 		}
 	}
