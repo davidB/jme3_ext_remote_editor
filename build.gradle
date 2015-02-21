@@ -22,7 +22,7 @@ targetCompatibility = JavaVersion.VERSION_1_7
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 
 
-version = "0.1.0"
+version = "0.2.0"
 group = "net.alchim31.jme3"
 def description = "An experimental remote display of a jMonkeyEngine application for remote edition (eg: via blender)"
 
