@@ -35,7 +35,7 @@ public class ModelViewer {
 
 	static def main(String[] args) {
 		Logger.getLogger("").setLevel(Level.WARNING)
-		installSLF4JBridge()
+		//installSLF4JBridge()
 		val options = new Options()
 		val jc = new JCommander(options)
 		try {
