@@ -41,13 +41,13 @@ def v_jme3 = '3.0.10'
 dependencies {
 	//provided 'org.projectlombok:lombok:1.14.2'
 	compile 'org.eclipse.xtend:org.eclipse.xtend.lib:2.7.+'
-	provided "com.jme3:jme3-core:${v_jme3}"
 	compile "org.slf4j:slf4j-api:${v_slf4j}"
-	compile "org.slf4j:jul-to-slf4j:${v_slf4j}"
 	compile 'io.netty:netty-handler:4.0.24.Final'
 	compile 'net.alchim31.xbuf:xbuf:0+'
+	provided "com.jme3:jme3-core:${v_jme3}"
 	runtime "com.jme3:jme3-desktop:${v_jme3}"
 	runtime "com.jme3:jme3-lwjgl:${v_jme3}"
+	runtime "org.slf4j:jul-to-slf4j:${v_slf4j}"
 	testCompile 'junit:junit:4.12'
 	testCompile 'net.alchim31.jme3:jme3_ext_spatial_explorer:0+'
 	testCompile 'com.beust:jcommander:1.35'

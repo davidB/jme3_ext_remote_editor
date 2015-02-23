@@ -34,8 +34,8 @@ import com.jme3.shader.VarType
 import com.jme3.texture.Image
 import com.jme3.texture.Texture
 import com.jme3.texture.Texture2D
-import com.jme3.util.IntMap
 import com.jme3.util.TangentBinormalGenerator
+import java.nio.ByteBuffer
 import java.util.HashMap
 import java.util.List
 import java.util.Map
@@ -49,7 +49,6 @@ import xbuf_ext.AnimationsKf.SampledTransform
 import xbuf_ext.CustomParams
 import xbuf_ext.CustomParams.CustomParam
 import xbuf_ext.CustomParams.CustomParamList
-import java.nio.ByteBuffer
 
 // TODO use a Validation object (like in scala/scalaz) with option to log/dump stacktrace
 public class Xbuf {
@@ -189,7 +188,7 @@ public class Xbuf {
 			dst.setBuffer(VertexBuffer.Type.Index, va.getInts().getStep(), hack_cnv(va.getInts()))
 		}
 		if (src.hasSkin) {
-			applySkin(src.skin, dst)
+			applySkin(src.skin, dst, log)
 		}
 //		// basic check
 //		val nbVertices = dst.getBuffer(VertexBuffer.Type.Position).getNumElements()
@@ -210,8 +209,7 @@ public class Xbuf {
 		dst
 	}
 
-	def Mesh applySkin(Datas.Skin skin, Mesh dst) {
-		System.out.println(">>>>>>>>>> ADD SKIN")
+	def Mesh applySkin(Datas.Skin skin, Mesh dst, Logger log) {
 		dst.clearBuffer(Type.BoneIndex);
 		dst.clearBuffer(Type.BoneWeight);
 
@@ -223,13 +221,17 @@ public class Xbuf {
 		for(var i = 0; i < nb; i++) {
 			var totalWeight = 0f
 			val cnt = skin.boneCountList.get(i)
+			if (cnt > 4) {
+				log.warn("vertex influenced by more than 4 bones : {}, only the 4 higher are keep.", cnt)
+			}
 			maxWeightsPerVert = Math.max(maxWeightsPerVert, Math.min(4, cnt))
+			val k0 = i * 4
 			for(var j = 0;  j < 4; j++) {
-				val k = i * 4 + j
+				val k = k0 + j
 				var index = 0 as byte
-				var weight = 0
+				var weight = 0f
 				if (j < cnt) {
-					weight = skin.boneWeightPer100List.get(isrc + j)
+					weight = skin.boneWeightList.get(isrc + j)
 					index = skin.boneIndexList.get(isrc + j).byteValue
 				}
 				totalWeight += weight
@@ -239,7 +241,7 @@ public class Xbuf {
 			if (totalWeight > 0) {
 				val normalizer = 1.0f / totalWeight
 				for(var j = 0;  j < 4; j++) {
-					val k = i * 4 + j
+					val k = k0 + j
 					weightPad4.set(k, weightPad4.get(k) * normalizer)
 				}
 			}
@@ -286,13 +288,11 @@ public class Xbuf {
 	}
 
 	def mergeAnimations(Datas.Data src, Map<String, Object> components, Logger log) {
-		System.out.println("size anim : " + src.getExtension(AnimationsKf.animationsKf).size());
 		for(AnimationsKf.AnimationKF e : src.getExtension(AnimationsKf.animationsKf)) {
 			val id = e.getId()
 			//TODO: merge with existing
 			val child = makeAnimation(e, log)
 			components.put(id, child)
-			System.out.println("create Animation :" + id + " .. " + child)
 		}
 	}
 
@@ -483,7 +483,6 @@ public class Xbuf {
 			)
 			db.put(src.getId(), b)
 			bones.set(i, b)
-			System.out.printf("bone : %s -> %d \n", b.name, i)
 		}
 		for(Datas.Relation r : e.getBonesGraphList()) {
 			val parent = db.get(r.getRef1())
@@ -679,7 +678,6 @@ public class Xbuf {
 							c = if (sc != null) new AnimControl(sc.skeleton) else new AnimControl()
 							op2.addControl(c)
 						}
-						System.out.println("add Animation :" + op1)
 						c.addAnim(op1)
 						done = true
 					}
@@ -748,6 +746,9 @@ public class Xbuf {
 			ac.animationNames.forEach[name | anims.put(name, ac.getAnim(name).clone())]
 			ac2.animations = anims
 			v.addControl(ac2)
+		} else {
+			//always add AnimControl else NPE when SkeletonControl.clone
+			v.addControl(new AnimControl(sk))
 		}
 		// SkeletonControl should be after AnimControl in the list of Controls
 		v.addControl(new SkeletonControl(sk))
