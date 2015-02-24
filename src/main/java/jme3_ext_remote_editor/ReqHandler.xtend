@@ -1,9 +1,16 @@
 package jme3_ext_remote_editor
 
+import com.jme3.animation.AnimControl
+import com.jme3.animation.LoopMode
 import com.jme3.app.SimpleApplication
 import com.jme3.asset.plugins.FileLocator
+import com.jme3.cinematic.Cinematic
+import com.jme3.cinematic.events.AnimationEvent
+import com.jme3.cinematic.events.CinematicEvent
+import com.jme3.cinematic.events.CinematicEventListener
 import com.jme3.math.ColorRGBA
 import com.jme3.math.Matrix4f
+import com.jme3.scene.Spatial
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import java.io.File
@@ -118,6 +125,7 @@ class ReqHandler {
 				case SETEYE: setEye(ctx, cmd0.getSetEye())
 				case SETDATA: setData(ctx, cmd0.getSetData())
 				case CHANGEASSETFOLDERS: changeAssetFolders(ctx, cmd0.getChangeAssetFolders())
+				case PLAYANIMATION: playAnimation(ctx, cmd0.getPlayAnimation())
 				//case : setCamera(ctx, cmd0); break;
 				default:
 					log.warn("unsupported cmd : {}", cmd0.getCmdCase().name() )
@@ -197,6 +205,34 @@ class ReqHandler {
 						log.warn("unregister assets folder : {}", f);
 					}
 				}
+			}
+		]
+	}
+
+	def playAnimation(ChannelHandlerContext ctx, Cmds.PlayAnimation cmd) {
+		remoteCtx.todos.add [RemoteCtx rc |
+			val target = rc.components.get(cmd.ref) as Spatial
+			val ac = target.getControl(typeof(AnimControl))
+			if (ac != null) {
+				val cinematic = new Cinematic(rc.root, LoopMode.DontLoop)
+				for (String animName : cmd.animationsNamesList) {
+					cinematic.enqueueCinematicEvent(new AnimationEvent(target, animName))
+				}
+				val cel = new CinematicEventListener() {
+					override onPlay(CinematicEvent e) {
+					}
+					override onPause(CinematicEvent e) {
+					}
+					override onStop(CinematicEvent e) {
+						app.enqueue([
+							app.stateManager.detach(cinematic)
+						])
+					}
+				}
+				cinematic.addListener(cel)
+				cinematic.fitDuration()
+				app.stateManager.attach(cinematic)
+				cinematic.play()
 			}
 		]
 	}
