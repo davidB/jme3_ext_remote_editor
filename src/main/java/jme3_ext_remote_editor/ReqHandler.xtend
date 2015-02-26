@@ -102,18 +102,6 @@ class ReqHandler {
 				]
 				return true;
 			]
-//			for (ViewPort vp : rc.view.getRenderManager().getMainViews()) {
-//				for(Spatial scene : vp.getScenes()) {
-//					scene.breadthFirstTraversal(new SceneGraphVisitorAdapter(){
-//						public void visit(Geometry geom) {
-//							System.out.printf("G: " + geom);
-//							if (!geom.checkCulling(vp.getCamera())) {
-//								System.out.printf("vp(%s) hide : %s\n",vp.getName(), geom);
-//							}
-//						}
-//					});
-//				}
-//			}
 		]
 	}
 
@@ -162,19 +150,37 @@ class ReqHandler {
 					.view
 					.getViewPort()
 					.getCamera()
-			//System.out.printf("setEye camera %s for %s - %s / %s\n", cam0.hashCode(), remoteCtx.view, rc.view, rc.view.getViewPort());
 			cam.setCamera(cam0);
 			if (cmd.hasNear()) cam0.setFrustumNear(cmd.getNear());
 			if (cmd.hasFar()) cam0.setFrustumFar(cmd.getFar());
 			if (cmd.hasProjection()) {
 				val proj = xbuf.cnv(cmd.getProjection(), new Matrix4f());
-				cam0.setParallelProjection(cmd.getProjMode() == ProjMode.orthographic);
-				cam0.setProjectionMatrix(proj);
+				cam0.setParallelProjection(cmd.getProjMode() == ProjMode.orthographic)
+				cam0.setProjectionMatrix(proj)
+				if (cmd.getProjMode() == ProjMode.orthographic) {
+					val lr = pairOf(proj.m00, proj.m03)
+					val bt = pairOf(proj.m11, proj.m13)
+					//val fn = pairOf(-proj.m22, proj.m23)
+					cam0.setFrustum(cmd.getNear(), cmd.getFar(), lr.key, lr.value, bt.value, bt.key)
+				}
 			}
-
-			cam0.update();
+			cam0.update()
 			cam.setEnabled(true);
 		]
+	}
+
+	def Pair<Float, Float> pairOf(float m0, float m3) {
+		// m00 = 2.0f / (right - left);
+		// m03 = -(right + left) / (right - left);
+		// m11 = 2.0f / (top - bottom)
+		// m13 = -(top + bottom) / (top - bottom);
+		//m22 = -2.0f / (far - near)
+		//m23 = -(far + near) / (far - near);
+		val l = (-m3 - 1) / m0
+		val r = (2f + (m0 * l)) / m0
+		//System.out.printf("m0 %s - m0' %s = %s\n", m0, (2.0f / (r - l)), m0 - (2.0f / (r - l)))
+		//System.out.printf("m3 %s - m3' %s = %s\n ", m3, (-1 * (r + l) / (r - l)), m3 - (-1 * (r + l) / (r - l)))
+		new Pair(l,r)
 	}
 
 	def changeAssetFolders(ChannelHandlerContext ctx, Cmds.ChangeAssetFolders cmd) {
