@@ -668,6 +668,9 @@ public class Xbuf {
 			if (op2 == null) {
 				log.warn("can't link op2 not found : {}", r.getRef2());
 			}
+			if (op1 == op2) {
+				log.warn("can't link op to itself (op1 == op2): {}", r.getRef1());
+			}
 			if (op1 != null && op2 != null) {
 				var done = false;
 				if (op1 instanceof Animation) {
