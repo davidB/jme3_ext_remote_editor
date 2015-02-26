@@ -1,6 +1,5 @@
 package jme3_ext_remote_editor
 
-import com.jme3.animation.AnimControl
 import com.jme3.animation.LoopMode
 import com.jme3.app.SimpleApplication
 import com.jme3.asset.plugins.FileLocator
@@ -38,14 +37,16 @@ class ReqHandler {
 	private val folders = new HashMap<String, File>();
 
 	def enable() {
+		println("ENABLE")
 		app.enqueue[|
-			val cam0 = app.getCamera();//.clone();
-			val vp = app.getRenderManager().createMainView("remoteHandler_" + System.currentTimeMillis(), cam0)
+			val cam0 = app.getCamera().clone()
+			//cam0.setViewPort(1f, 0f, 2f, 1f) // black screen if the camera is outside of viewport(0-1, 0-1, 0-1, 0-1)
+			val vp = app.getRenderManager().createPreView("remoteHandler_" + System.currentTimeMillis(), cam0)
+			//val vp = app.getRenderManager().createMainView("remoteHandler_" + System.currentTimeMillis(), cam0)
 			vp.setBackgroundColor(ColorRGBA.Gray)
 			vp.addProcessor(remoteCtx.view)
-			//System.out.printf("Enable camera %s for %s - %s / %s\n", cam0.hashCode(), remoteCtx.view, "", vp);
-			//vp.setClearEnabled(true);
-			//vp.attachScene(app.getRootNode());
+			vp.setClearFlags(true, true, true)
+			vp.attachScene(app.getRootNode())
 			app.getRootNode().attachChild(remoteCtx.root)
 			log.info("connected")
 			null
@@ -82,7 +83,7 @@ class ReqHandler {
 		val w = msg.readInt()
 		val h = msg.readInt()
 		msg.release()
-		remoteCtx.todos.add [RemoteCtx rc |
+		todo[rc|
 			rc.view.askReshape.set(new SceneProcessorCaptureToBGRA.ReshapeInfo(w, h, true))
 			//TODO run notify in async (in an executor)
 			rc.view.askNotify.set [bytes |
@@ -136,7 +137,7 @@ class ReqHandler {
 	}
 
 	def setData(ChannelHandlerContext ctx, Datas.Data data) {
-		remoteCtx.todos.add [RemoteCtx rc |
+		todo[RemoteCtx rc |
 			val xbufLogger = new LoggerCollector("xbuf");
 			xbuf.merge(data, rc.root, rc.components, xbufLogger);
 			xbufLogger.dumpTo(log);
@@ -152,15 +153,15 @@ class ReqHandler {
 	}
 
 	def setEye(ChannelHandlerContext ctx, Cmds.SetEye cmd) {
-		remoteCtx.todos.add[rc |
-			val cam = rc.cam;
+		todo[rc |
+			val cam = rc.cam
 			val rot = xbuf.cnv(cmd.getRotation(), cam.getLocalRotation());
 			cam.setLocalRotation(rot.clone());
 			cam.setLocalTranslation(xbuf.cnv(cmd.getLocation(), cam.getLocalTranslation()));
 			val cam0 = rc
 					.view
 					.getViewPort()
-					.getCamera();
+					.getCamera()
 			//System.out.printf("setEye camera %s for %s - %s / %s\n", cam0.hashCode(), remoteCtx.view, rc.view, rc.view.getViewPort());
 			cam.setCamera(cam0);
 			if (cmd.hasNear()) cam0.setFrustumNear(cmd.getNear());
@@ -177,7 +178,7 @@ class ReqHandler {
 	}
 
 	def changeAssetFolders(ChannelHandlerContext ctx, Cmds.ChangeAssetFolders cmd) {
-		remoteCtx.todos.add [RemoteCtx rc |
+		todo[RemoteCtx rc |
 			val am = app.getAssetManager();
 			if (cmd.getUnregisterOther()) {
 				for (String p: folders.keySet()) {
@@ -210,10 +211,9 @@ class ReqHandler {
 	}
 
 	def playAnimation(ChannelHandlerContext ctx, Cmds.PlayAnimation cmd) {
-		remoteCtx.todos.add [RemoteCtx rc |
+		todo[RemoteCtx rc |
 			val target = rc.components.get(cmd.ref) as Spatial
-			val ac = target.getControl(typeof(AnimControl))
-			if (ac != null) {
+			if (target != null) {
 				val cinematic = new Cinematic(rc.root, LoopMode.DontLoop)
 				for (String animName : cmd.animationsNamesList) {
 					cinematic.enqueueCinematicEvent(new AnimationEvent(target, animName))
@@ -233,6 +233,18 @@ class ReqHandler {
 				cinematic.fitDuration()
 				app.stateManager.attach(cinematic)
 				cinematic.play()
+			}
+		]
+	}
+
+	def todo(Procedures.Procedure1<RemoteCtx> job) {
+		app.enqueue[|
+			try {
+				job.apply(remoteCtx)
+				true
+			} catch(Exception exc) {
+				exc.printStackTrace()
+				false
 			}
 		]
 	}

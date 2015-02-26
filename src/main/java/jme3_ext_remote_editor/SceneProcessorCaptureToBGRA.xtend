@@ -34,23 +34,19 @@ class SceneProcessorCaptureToBGRA implements SceneProcessor {
 		val ti = new TransfertImage(width0, height0)
 		viewPort.getCamera().resize(width0, height0, fixAspect)
 		//renderManager.getRenderer().setMainFrameBufferOverride(ti.fb);
-		renderManager.notifyReshape(ti.width, ti.height);
 
-		//		for (ViewPort vp : viewPorts){
-		//			vp.getCamera().resize(ti.width, ti.height, fixAspect);
-		//
-		//			// NOTE: Hack alert. This is done ONLY for custom framebuffers.
-		//			// Main framebuffer should use RenderManager.notifyReshape().
-		//			for (SceneProcessor sp : vp.getProcessors()){
-		//				sp.reshape(vp, ti.width, ti.height);
-		//			}
-		//		}
+		//renderManager.notifyReshape(ti.width, ti.height) // side effect on every viewport
+		// NOTE: Hack alert. This is done ONLY for custom framebuffers.
+		// Main framebuffer should use RenderManager.notifyReshape().
+		for (SceneProcessor sp : this.viewPort.getProcessors()){
+			sp.reshape(this.viewPort, ti.width, ti.height);
+		}
 		return ti;
 	}
 
 
 	override boolean isInitialized() {
-		timage != null
+		viewPort != null && renderManager != null
 	}
 
 	override preFrame(float tpf) {
