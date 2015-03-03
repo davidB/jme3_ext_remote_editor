@@ -42,7 +42,7 @@ class ReqHandler {
 			val cam0 = app.getCamera().clone()
 			//cam0.setViewPort(1f, 0f, 2f, 1f) // black screen if the camera is outside of viewport(0-1, 0-1, 0-1, 0-1)
 			val vp = app.getRenderManager().createPreView("remoteHandler_" + System.currentTimeMillis(), cam0)
-			//val vp = app.getRenderManager().createMainView("remoteHandler_" + System.currentTimeMillis(), cam0)
+			//val vp = app.getRenderManager().createPostView("remoteHandler_" + System.currentTimeMillis(), cam0)
 			vp.setBackgroundColor(ColorRGBA.Gray)
 			vp.addProcessor(remoteCtx.view)
 			vp.setClearFlags(true, true, true)

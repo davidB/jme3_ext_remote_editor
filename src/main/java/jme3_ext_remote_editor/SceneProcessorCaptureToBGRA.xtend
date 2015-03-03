@@ -50,7 +50,7 @@ class SceneProcessorCaptureToBGRA implements SceneProcessor {
 	}
 
 	override preFrame(float tpf) {
-		if (timage != null && notify != null) {
+		if (timage != null) {
 			renderManager.getRenderer().setMainFrameBufferOverride(timage.fb);
 		} else {
 			renderManager.getRenderer().setMainFrameBufferOverride(null);
@@ -86,6 +86,7 @@ class SceneProcessorCaptureToBGRA implements SceneProcessor {
 		if (askN != null) {
 			notify = askN;
 		}
+		renderManager.getRenderer().setMainFrameBufferOverride(null);
 	}
 
 	override cleanup() {
