@@ -75,14 +75,15 @@ class ReqHandler {
 				default : System.out.println("Unsupported kind of message : " + k)
 			}
 		} catch(Exception exc) {
-			exc.printStackTrace();
+			exc.printStackTrace()
+		} finally {
+			msg.release()
 		}
 	}
 
 	def askScreenshot(ChannelHandlerContext ctx, ByteBuf msg) {
 		val w = msg.readInt()
 		val h = msg.readInt()
-		msg.release()
 		todo[rc|
 			rc.view.askReshape.set(new SceneProcessorCaptureToBGRA.ReshapeInfo(w, h, true))
 			//TODO run notify in async (in an executor)
@@ -100,7 +101,7 @@ class ReqHandler {
 					ctx.write(header)
 					ctx.writeAndFlush(out)
 				]
-				return true;
+				return true
 			]
 		]
 	}
