@@ -151,21 +151,24 @@ class ReqHandler {
 					.getViewPort()
 					.getCamera()
 			cam.setCamera(cam0);
-			if (cmd.hasNear()) cam0.setFrustumNear(cmd.getNear());
-			if (cmd.hasFar()) cam0.setFrustumFar(cmd.getFar());
+			if (cmd.hasNear()) cam0.setFrustumNear(cmd.getNear())
+			if (cmd.hasFar()) cam0.setFrustumFar(cmd.getFar())
 			if (cmd.hasProjection()) {
 				val proj = xbuf.cnv(cmd.getProjection(), new Matrix4f());
 				cam0.setParallelProjection(cmd.getProjMode() == ProjMode.orthographic)
-				cam0.setProjectionMatrix(proj)
+
 				if (cmd.getProjMode() == ProjMode.orthographic) {
+					cam0.setProjectionMatrix(null)
 					val lr = pairOf(proj.m00, proj.m03)
 					val bt = pairOf(proj.m11, proj.m13)
-					//val fn = pairOf(-proj.m22, proj.m23)
-					cam0.setFrustum(cmd.getNear(), cmd.getFar(), lr.key, lr.value, bt.value, bt.key)
+					val nf = pairOf(-proj.m22, proj.m23)
+					cam0.setFrustum(nf.key, nf.value, lr.key, lr.value, bt.value, bt.key)
+				} else {
+					cam0.setProjectionMatrix(proj)
 				}
 			}
 			cam0.update()
-			cam.setEnabled(true);
+			cam.setEnabled(true)
 		]
 	}
 
@@ -174,8 +177,8 @@ class ReqHandler {
 		// m03 = -(right + left) / (right - left);
 		// m11 = 2.0f / (top - bottom)
 		// m13 = -(top + bottom) / (top - bottom);
-		//m22 = -2.0f / (far - near)
-		//m23 = -(far + near) / (far - near);
+		// m22 = -2.0f / (far - near)
+		// m23 = -(far + near) / (far - near);
 		val l = (-m3 - 1) / m0
 		val r = (2f + (m0 * l)) / m0
 		//System.out.printf("m0 %s - m0' %s = %s\n", m0, (2.0f / (r - l)), m0 - (2.0f / (r - l)))
