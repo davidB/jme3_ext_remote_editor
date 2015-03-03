@@ -25,6 +25,7 @@ import xbuf.Cmds.SetEye.ProjMode
 import xbuf.Datas
 
 import static io.netty.buffer.Unpooled.wrappedBuffer
+import com.jme3.math.FastMath
 
 @FinalFieldsConstructor
 class ReqHandler {
@@ -152,20 +153,20 @@ class ReqHandler {
 					.getViewPort()
 					.getCamera()
 			cam.setCamera(cam0);
-			if (cmd.hasNear()) cam0.setFrustumNear(cmd.getNear())
-			if (cmd.hasFar()) cam0.setFrustumFar(cmd.getFar())
+			//if (cmd.hasNear()) cam0.setFrustumNear(cmd.getNear())
+			//if (cmd.hasFar()) cam0.setFrustumFar(cmd.getFar())
 			if (cmd.hasProjection()) {
 				val proj = xbuf.cnv(cmd.getProjection(), new Matrix4f());
 				cam0.setParallelProjection(cmd.getProjMode() == ProjMode.orthographic)
-
 				if (cmd.getProjMode() == ProjMode.orthographic) {
-					cam0.setProjectionMatrix(null)
 					val lr = pairOf(proj.m00, proj.m03)
 					val bt = pairOf(proj.m11, proj.m13)
 					val nf = pairOf(-proj.m22, proj.m23)
 					cam0.setFrustum(nf.key, nf.value, lr.key, lr.value, bt.value, bt.key)
 				} else {
-					cam0.setProjectionMatrix(proj)
+					val fovY = 2f * FastMath.RAD_TO_DEG * FastMath.atan(1f / proj.m11)
+					val aspect = proj.m11 / proj.m00
+					cam0.setFrustumPerspective(fovY, aspect, cmd.getNear(), cmd.getFar())
 				}
 			}
 			cam0.update()
